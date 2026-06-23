@@ -2880,3 +2880,91 @@ input[type="number"]::-webkit-outer-spin-button {
   transform: translateX(18px);
   background-color: #fff;
 }
+
+/* ==========================================================================
+   Mobile Responsive Enhancements (Zuperior Style)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Stack the main grid components vertically */
+  .workspace-grid {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+
+  /* Make sidebar horizontal at top of the workspace or stack it */
+  .left-icon-sidebar {
+    width: 100% !important;
+    height: 38px !important;
+    flex-direction: row !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    padding-top: 0 !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .sidebar-icon {
+    margin-bottom: 0 !important;
+  }
+
+  /* Make instruments list overlay the full screen on mobile */
+  .instruments-sidebar-panel {
+    position: absolute;
+    top: 38px;
+    left: 0;
+    width: 100% !important;
+    height: calc(100% - 38px);
+    z-index: 1000;
+  }
+
+  /* Main content row stacks vertically */
+  .workspace-main-row {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    height: auto !important;
+  }
+
+  /* Chart occupies a fixed height at the top */
+  .center-workspace {
+    width: 100% !important;
+    height: 48vh !important;
+    min-height: 280px;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+  }
+
+  /* Order entry terminal occupies the bottom area */
+  .right-workspace {
+    width: 100% !important;
+    border-left: none !important;
+    height: auto !important;
+    flex: 1;
+  }
+
+  /* Responsive layout for bottom account metrics footer */
+  .bottom-account-stats-bar {
+    height: auto !important;
+    flex-direction: column !important;
+    padding: 8px !important;
+    gap: 8px !important;
+  }
+
+  .bottom-account-stats-bar .left-stats {
+    flex-wrap: wrap !important;
+    justify-content: space-around !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .bottom-account-stats-bar .right-stats {
+    width: 100% !important;
+    justify-content: space-between !important;
+    margin-left: 0 !important;
+  }
+
+  /* Fix latency indicator margin on mobile */
+  #latency-indicator {
+    margin-left: 0 !important;
+  }
+}

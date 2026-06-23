@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bitstar WebTerminal</title>
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' ws://localhost:* wss://localhost:* http://127.0.0.1:* https://api.hyperliquid.xyz wss://api.hyperliquid.xyz;">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+
+<body>
+  <div class="app-container">
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <!-- Logo Zuperior style -->
+        <div class="logo" style="display: flex; align-items: center; gap: 8px;">
+          <div
+            style="background: linear-gradient(135deg, #7c4dff, #b388ff); color: #fff; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 8px rgba(124, 77, 255, 0.4);">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+            </svg>
+          </div>
+          <span
+            style="font-weight: 800; font-size: 14px; color: #fff; letter-spacing: -0.3px; font-family: 'Inter', sans-serif;">Bitstar</span>
+        </div>
+
+        <!-- Asset Tabs -->
+        <div class="asset-tabs">
+          <div class="asset-tab" data-symbol="BTCUSD">
+            <span class="coin-icon" style="color: #ff9f0a;">₿</span>
+            <span class="tab-symbol-text">BTC</span>
+            <span class="tab-close">×</span>
+          </div>
+          <div class="asset-tab" data-symbol="ETHUSD">
+            <span class="coin-icon" style="color: #a48df6;">Ξ</span>
+            <span class="tab-symbol-text">ETH</span>
+            <span class="tab-close">×</span>
+          </div>
+          <div class="asset-tab active" data-symbol="EURUSD">
+            <span class="coin-icon" style="color: #0a84ff;">💵</span>
+            <span class="tab-symbol-text">EUR/USD</span>
+            <span class="volatility-indicator">III</span>
+            <span class="tab-close">×</span>
+          </div>
+          <div class="asset-tab" data-symbol="XAUUSD">
+            <span class="coin-icon" style="color: #ffd60a;">🪙</span>
+            <span class="tab-symbol-text">XAU/USD</span>
+            <span class="volatility-indicator">III</span>
+            <span class="tab-close">×</span>
+          </div>
+          <div class="asset-tab" data-symbol="USOIL">
+            <span class="coin-icon" style="color: #bf5af2;">🛢</span>
+            <span class="tab-symbol-text">USOIL</span>
+            <span class="volatility-indicator">III</span>
+            <span class="tab-close">×</span>
+          </div>
+          <div class="asset-tab" data-symbol="XAGUSD">
+            <span class="coin-icon" style="color: #e2e8f0;">🥈</span>
+            <span class="tab-symbol-text">XAG/USD</span>
+            <span class="volatility-indicator">III</span>
+            <span class="tab-close">×</span>
+          </div>
+          <div class="add-tab-btn"
+            style="color: var(--text-secondary); font-size: 14px; cursor: pointer; margin-left: 8px; font-weight: 700;">
+            +</div>
+        </div>
+      </div>
+
+      <div class="header-right" style="display: flex; align-items: center; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="display: flex; flex-direction: column; align-items: flex-end;">
+            <div style="display: flex; align-items: center;">
+              <span
+                style="font-size: 9px; background-color: rgba(0, 192, 118, 0.12); color: #00c076; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; font-family: 'Inter', sans-serif;">Demo</span>
+              <span
+                style="font-size: 10px; color: var(--text-secondary); font-weight: 600; margin-left: 6px; font-family: 'Inter', sans-serif;">Standard</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px; margin-top: 3px; cursor: pointer;">
+              <span style="font-size: 13px; font-weight: 700; color: #fff; font-family: 'Space Grotesk', sans-serif;"
+                id="balance-header-display">10000.00 USD</span>
+              <span style="color: var(--text-secondary); font-size: 8px;">▼</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="workspace-grid">
+      <!-- Thin Left Icon Sidebar Navigation -->
+      <aside class="left-icon-sidebar">
+        <div class="sidebar-icon" id="sidebar-btn-instruments" title="Instruments" style="margin-bottom: 12px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+        </div>
+        <div class="sidebar-icon" id="sidebar-btn-settings" title="Terminal Settings">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z">
+            </path>
+          </svg>
+        </div>
+      </aside>
+
+      <!-- Instruments Sliding Panel -->
+      <aside class="instruments-sidebar-panel hidden" id="instruments-sidebar-panel">
+        <div class="panel-header">
+          <h3>Instruments</h3>
+          <div class="search-box">
+            <input type="text" id="instruments-search-input" placeholder="Search instruments...">
+          </div>
+          <div class="category-filters">
+            <button class="filter-btn active" data-category="all">All</button>
+            <button class="filter-btn" data-category="cfd">Forex/CFDs</button>
+            <button class="filter-btn" data-category="futures">Futures</button>
+          </div>
+        </div>
+        <div class="instruments-list" id="instruments-list-container">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </aside>
+
+      <!-- Main Content Area to the right of Sidebar -->
+      <div class="workspace-content-area" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+        <div class="workspace-main-row" style="display: flex; flex: 1; overflow: hidden; position: relative;">
+          <!-- Center Workspace (Chart & Portfolio) -->
+          <section class="center-workspace">
+            <!-- Chart Options Toolbar -->
+            <div class="chart-options-bar">
+              <div class="left-group">
+                <div class="timeframe-select-container">
+                  <span class="timeframe-display" id="timeframe-label">5m</span>
+                  <span class="arrow">▾</span>
+                  <!-- Dropdown Menu for Timeframes -->
+                  <div class="timeframe-dropdown hidden" id="timeframe-dropdown-menu">
+                    <div class="tf-option font-mono" data-tf="1">1m</div>
+                    <div class="tf-option font-mono active" data-tf="5">5m</div>
+                    <div class="tf-option font-mono" data-tf="15">15m</div>
+                    <div class="tf-option font-mono" data-tf="60">1h</div>
+                    <div class="tf-option font-mono" data-tf="1440">1d</div>
+                  </div>
+                </div>
+                <span class="divider">|</span>
+                <div class="chart-type-select-container" style="position: relative;">
+                  <button class="options-btn" id="chart-type-btn" title="Chart Type">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="12" y1="1" x2="12" y2="23"></line>
+                      <rect x="8" y="5" width="8" height="14" rx="2" ry="2" fill="currentColor"></rect>
+                    </svg>
+                  </button>
+                  <div class="chart-type-dropdown hidden" id="chart-type-dropdown-menu">
+                    <div class="type-option active" data-type="candles">Candles</div>
+                    <div class="type-option" data-type="line">Line / Area</div>
+                    <div class="type-option" data-type="bars">OHLC Bars</div>
+                  </div>
+                </div>
+                <span class="divider">|</span>
+                <div class="indicator-select-container" style="position: relative;">
+                  <button class="options-btn" id="indicators-btn" title="Indicators">
+                    <span
+                      style="font-family: serif; font-style: italic; font-weight: bold; font-size: 13px; margin-right: 4px; color: var(--text-secondary);">f<span
+                        style="font-size: 9px; font-style: normal; font-weight: normal; vertical-align: sub; position: relative; bottom: -1px; left: -1px;">x</span></span>
+                    <span>Indicators</span>
+                  </button>
+                  <div class="indicators-dropdown hidden" id="indicators-dropdown-menu">
+                    <div class="indicator-option" data-indicator="ema9">
+                      <span class="checkbox-indicator"></span> EMA 9
+                    </div>
+                    <div class="indicator-option" data-indicator="ema21">
+                      <span class="checkbox-indicator"></span> EMA 21
+                    </div>
+                    <div class="indicator-option" data-indicator="bb">
+                      <span class="checkbox-indicator"></span> Bollinger Bands
+                    </div>
+                  </div>
+                </div>
+                <span class="divider">|</span>
+                <button class="options-btn" title="Select Layout">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                </button>
+                <span class="divider">|</span>
+                <button class="options-btn" title="Undo">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 7v6h6M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
+                  </svg>
+                </button>
+                <button class="options-btn" title="Redo">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 7v6h-6M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="right-group">
+                <button class="options-btn" title="Save Layout">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                  </svg>
+                  <span>Save</span>
+                  <span style="font-size: 8px; margin-left: 2px;">▾</span>
+                </button>
+                <button class="options-btn" title="Chart Settings">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path
+                      d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z">
+                    </path>
+                  </svg>
+                </button>
+                <button class="options-btn" id="fullscreen-btn" title="Fullscreen Toggle">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                      d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3">
+                    </path>
+                  </svg>
+                </button>
+                <button class="options-btn" title="Take Screenshot">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                    <circle cx="12" cy="13" r="4"></circle>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Chart wrapper -->
+            <div class="chart-wrapper">
+              <!-- Drawing Toolbar on the left (matches Bitstar TradingView Integration) -->
+              <div class="chart-drawing-toolbar" id="drawing-toolbar">
+                <button class="drawing-btn active" title="Crosshair" id="draw-btn-crosshair">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="12" y1="2" x2="12" y2="22"></line>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </button>
+                <button class="drawing-btn" title="Trend Line" id="draw-btn-trendline">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="6" y1="18" x2="18" y2="6"></line>
+                    <circle cx="6" cy="18" r="2"></circle>
+                    <circle cx="18" cy="6" r="2"></circle>
+                  </svg>
+                </button>
+                <button class="drawing-btn" title="Parallel Channel" id="draw-btn-sliders">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="4" y1="7" x2="20" y2="7"></line>
+                    <circle cx="16" cy="7" r="2" fill="currentColor"></circle>
+                    <line x1="4" y1="12" x2="20" y2="12"></line>
+                    <circle cx="16" cy="12" r="2" fill="currentColor"></circle>
+                    <line x1="4" y1="17" x2="20" y2="17"></line>
+                    <circle cx="8" cy="17" r="2" fill="currentColor"></circle>
+                  </svg>
+                </button>
+                <button class="drawing-btn" title="Gann Fan" id="draw-btn-graph">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="2"></circle>
+                    <circle cx="6" cy="8" r="1.5"></circle>
+                    <circle cx="18" cy="8" r="1.5"></circle>
+                    <circle cx="9" cy="18" r="1.5"></circle>
+                    <circle cx="15" cy="18" r="1.5"></circle>
+                    <line x1="12" y1="12" x2="6" y2="8"></line>
+                    <line x1="12" y1="12" x2="18" y2="8"></line>
+                    <line x1="12" y1="12" x2="9" y2="18"></line>
+                    <line x1="12" y1="12" x2="15" y2="18"></line>
+                    <line x1="6" y1="8" x2="18" y2="8"></line>
+                    <line x1="9" y1="18" x2="15" y2="18"></line>
+                  </svg>
+                </button>
+                <button class="drawing-btn" title="Fibonacci Retracement" id="draw-btn-fib">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="4" y1="6" x2="20" y2="6"></line>
+                    <line x1="4" y1="12" x2="20" y2="12"></line>
+                    <line x1="4" y1="18" x2="20" y2="18"></line>
+                    <line x1="6" y1="18" x2="18" y2="6" stroke-dasharray="2 2"></line>
+                  </svg>
+                </button>
+                <button class="drawing-btn" title="Highlight Brush" id="draw-btn-brush">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path
+                      d="M12 2c-3.87 0-7 3.13-7 7 0 2.38 1.19 4.47 3 5.74V20c0 1.1.9 2 2 2h4c1.1 0 2-.9 2-2v-5.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7z">
+                    </path>
+                    <path d="M12 16a4 4 0 0 1-4-4"></path>
+                  </svg>
+                </button>
+                <button class="drawing-btn" title="Text Annotation" id="draw-btn-text">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M4 6h16M12 6v14M9 20h6"></path>
+                  </svg>
+                </button>
+                <button class="drawing-btn" title="Emoji Sticker" id="draw-btn-smiley">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                  </svg>
+                </button>
+                <div class="toolbar-divider"></div>
+                <button class="drawing-btn" title="Ruler / Measure" id="draw-btn-ruler">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="5" y1="19" x2="19" y2="5"></line>
+                    <line x1="8" y1="16" x2="10" y2="18"></line>
+                    <line x1="11" y1="13" x2="13" y2="15"></line>
+                    <line x1="14" y1="10" x2="16" y2="12"></line>
+                    <line x1="17" y1="7" x2="19" y2="9"></line>
+                  </svg>
+                </button>
+                <button class="drawing-btn" title="Zoom In" id="draw-btn-zoom">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    <line x1="11" y1="8" x2="11" y2="14"></line>
+                    <line x1="8" y1="11" x2="14" y2="11"></line>
+                  </svg>
+                </button>
+                <div class="toolbar-divider"></div>
+                <button class="drawing-btn" title="Magnet Mode" id="draw-btn-magnet">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M6 9v4c0 3.3 2.7 6 6 6s6-2.7 6-6V9M18 5h-3v4h3zm-9 0H6v4h3z"></path>
+                  </svg>
+                </button>
+                <button class="drawing-btn" title="Stay-in-Drawing Mode" id="draw-btn-staydraw">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+                    <rect x="14" y="14" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"></rect>
+                    <path d="M16 14v-2c0-1.1.9-2 2-2s2 .9 2 2v2" stroke="currentColor" stroke-width="1.2"></path>
+                  </svg>
+                </button>
+                <button class="drawing-btn" title="Lock Drawings" id="draw-btn-lockall">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="5" y="11" width="14" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                </button>
+                <button class="drawing-btn" title="Hide Drawings" id="draw-btn-hideall">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <line x1="3" y1="21" x2="21" y2="3"></line>
+                  </svg>
+                </button>
+                <div class="toolbar-divider"></div>
+                <button class="drawing-btn" title="Clear Drawings" id="draw-btn-trash">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+
+                <div style="flex: 1;"></div>
+                <div class="drawing-btn" style="cursor: default; color: #fff; opacity: 0.9; margin-top: auto;"
+                  title="TradingView Charting">
+                  <svg width="16" height="16" viewBox="0 0 28 28" fill="currentColor">
+                    <path
+                      d="M14 0C6.268 0 0 6.268 0 14s6.268 14 14 14 14-6.268 14-14S21.732 0 14 0zm0 25c-6.075 0-11-4.925-11-11S7.925 3 14 3s11 4.925 11 11-4.925 11-11 11z" />
+                    <path d="M9 9h2v10H9zm4 0h6v2h-4v2h4v2h-4v4h-2zm8 0h2v10h-2z" />
+                  </svg>
+                </div>
+              </div>
+
+              <!-- Live Symbol Candle info text inside chart -->
+              <div class="chart-candle-info-bar">
+                <span class="symbol-name-lbl" id="chart-info-symbol">EURUSD - 5m</span>
+                <span class="candles-metrics font-mono" id="chart-info-metrics"
+                  style="display: inline-flex; align-items: center;"><span
+                    style="color: #00c076; margin-right: 4px; vertical-align: middle; font-size: 8px;">●</span>O1.14574
+                  H1.14581 L1.14544 C1.14563 <span style="color: #ff4d4d; margin-left: 4px;">-0.00008
+                    (-0.01%)</span></span>
+              </div>
+
+              <!-- Chart Container -->
+              <div id="chart-container"></div>
+              <canvas id="chart-drawing-canvas"></canvas>
+              <div id="chart-loader" class="chart-overlay-loader">
+                <div class="spinner"></div>
+                <span>Loading Bitstar Chart Terminal...</span>
+              </div>
+              <div id="no-tabs-overlay" class="chart-overlay-loader hidden"
+                style="background-color: rgba(7, 8, 10, 0.95); backdrop-filter: blur(8px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; z-index: 25;">
+                <div style="font-size: 40px; margin-bottom: 12px;">📊</div>
+                <h3 style="color: #fff; font-family: 'Space Grotesk', sans-serif; font-size: 16px; margin-bottom: 8px;">
+                  No Instrument Selected</h3>
+                <p
+                  style="color: var(--text-secondary); font-size: 11px; max-width: 260px; line-height: 1.5; margin-bottom: 16px;">
+                  Open the Instruments panel or click '+' to select an asset and start trading.
+                </p>
+                <button id="open-instruments-overlay-btn"
+                  style="background-color: var(--accent-color); color: #000; border: none; padding: 8px 16px; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer; transition: background-color 0.15s ease;">
+                  Browse Instruments
+                </button>
+              </div>
+
+              <!-- Bottom Timeframe Selection Toolbar -->
+              <div class="bottom-timeframe-toolbar">
+                <div class="tf-buttons" style="display: flex; align-items: center; gap: 12px;">
+                  <button class="tf-btn" data-tf="5y">5y</button>
+                  <button class="tf-btn" data-tf="1y">1y</button>
+                  <button class="tf-btn" data-tf="3m">3m</button>
+                  <button class="tf-btn" data-tf="1m">1m</button>
+                  <button class="tf-btn" data-tf="5d">5d</button>
+                  <button class="tf-btn active" data-tf="1d">1d</button>
+                  <button class="tf-btn" title="Go to Date"
+                    style="display: inline-flex; align-items: center; background: none; border: none; cursor: pointer; padding: 0;">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                  </button>
+                </div>
+                <div class="chart-status-container"
+                  style="display: flex; align-items: center; gap: 8px; font-size: 9.5px; color: var(--text-secondary); font-family: var(--font-sans);">
+                  <span id="chart-live-time"
+                    style="font-family: var(--font-mono); color: var(--text-secondary); font-size: 9.5px;">01:04:42
+                    UTC</span>
+                  <span style="color: rgba(255, 255, 255, 0.12); font-size: 10px; margin: 0 2px;">|</span>
+                  <span class="status-btn" style="cursor: pointer; padding: 2px 4px; border-radius: 2px;">%</span>
+                  <span class="status-btn" style="cursor: pointer; padding: 2px 4px; border-radius: 2px;">log</span>
+                  <span class="status-btn active"
+                    style="cursor: pointer; padding: 2px 6px; border-radius: 3px; background-color: var(--bg-active); color: #fff; font-weight: 700;">auto</span>
+                </div>
+              </div>
+            </div>
+
+          </section>
+
+          <!-- Right Panel: Zuperior Trading Terminal -->
+          <section class="right-workspace">
+            <div class="no-symbol-placeholder hidden"
+              style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; color: var(--text-secondary); margin: auto;">
+              <div style="font-size: 28px; margin-bottom: 12px;">📈</div>
+              <h3 style="color: #fff; font-family: 'Space Grotesk', sans-serif; font-size: 13px; margin-bottom: 4px;">No
+                Instrument Selected</h3>
+              <p style="font-size: 10.5px; line-height: 1.4; max-width: 180px;">Select an instrument to view its trading
+                form and place orders.</p>
+            </div>
+            <div class="terminal-title-bar"
+              style="height: 38px; display: flex; justify-content: space-between; align-items: center; padding: 0 12px;">
+              <div class="symbol-info" style="display: flex; align-items: center; gap: 8px;">
+                <div id="terminal-active-icon"
+                  style="background-color: #f5a623; color: #fff; font-weight: 700; border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-family: sans-serif;">
+                  A</div>
+                <span class="symbol-text" id="terminal-active-symbol"
+                  style="font-size: 12px; font-weight: 700; color: #fff; font-family: 'Inter', sans-serif;">EURUSD</span>
+              </div>
+              <span class="close-terminal-btn"
+                style="cursor: pointer; font-size: 16px; color: var(--text-secondary);">×</span>
+            </div>
+
+            <div class="panel-form">
+              <!-- Regular Form Selector -->
+              <div class="form-selector-row"
+                style="display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); height: 32px; padding: 0 10px; border-radius: var(--border-radius-sm); cursor: pointer; font-size: 11px;">
+                <span class="label" style="font-weight: 600; color: #fff;">Regular form</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary);">
+                  <line x1="4" y1="9" x2="20" y2="9"></line>
+                  <line x1="4" y1="15" x2="20" y2="15"></line>
+                  <circle cx="4" cy="9" r="1" fill="currentColor"></circle>
+                  <circle cx="4" cy="15" r="1" fill="currentColor"></circle>
+                </svg>
+              </div>
+
+              <!-- Split Buy / Sell Price Ticker boxes -->
+              <div class="buy-sell-tickers-container" style="position: relative; margin-top: 4px;">
+                <!-- Sell box -->
+                <div class="ticker-box sell-side" id="action-sell-trigger" style="cursor: pointer;">
+                  <span class="side-lbl">Sell</span>
+                  <span class="price-val font-mono" id="sell-price-display">0.00<sup>0</sup></span>
+                </div>
+
+                <!-- Floating Spread Badge -->
+                <div class="spread-badge font-mono" id="spread-diff-val">0.00 pips <span
+                    style="font-size: 8px; margin-left: 2px; color: var(--text-secondary);">▾</span></div>
+
+                <!-- Buy box -->
+                <div class="ticker-box buy-side" id="action-buy-trigger" style="cursor: pointer;">
+                  <span class="side-lbl">Buy</span>
+                  <span class="price-val font-mono" id="buy-price-display">0.00<sup>0</sup></span>
+                </div>
+              </div>
+
+              <!-- Order Type Switches (Market vs Pending) -->
+              <div class="order-execution-switch-tabs" style="margin-top: 4px;">
+                <button class="exec-tab-btn active" id="exec-tab-market">Market</button>
+                <button class="exec-tab-btn" id="exec-tab-pending">Pending</button>
+              </div>
+
+              <!-- Pending order price (Hidden for Market) -->
+              <div class="form-group hidden" id="pending-price-group">
+                <div class="label-row">
+                  <label>Pending Price</label>
+                </div>
+                <div class="input-with-controls">
+                  <input type="number" id="pending-price-input" placeholder="0.00" min="0.00001" step="any">
+                  <span class="unit-overlay-text">Price ▾</span>
+                  <button class="ctrl-btn minus" id="pending-price-minus">-</button>
+                  <button class="ctrl-btn plus" id="pending-price-plus">+</button>
+                </div>
+              </div>
+
+              <!-- Volume lots input -->
+              <div class="form-group" style="margin-top: 4px;">
+                <div class="label-row">
+                  <label style="font-size: 11px; font-weight: 600; color: #8a99ad;">Volume</label>
+                </div>
+                <div class="input-with-controls">
+                  <input type="number" id="order-volume-input" value="0.01" min="0.01" step="0.01">
+                  <span class="unit-overlay-text">Lots</span>
+                  <button class="ctrl-btn minus" id="volume-minus">-</button>
+                  <button class="ctrl-btn plus" id="volume-plus">+</button>
+                </div>
+              </div>
+
+
+              <!-- Take Profit check & input (visible directly, empty by default) -->
+              <div class="collapsible-trading-option" style="margin-top: 4px;">
+                <div class="option-row-wrapper">
+                  <div class="checkbox-label-row" style="justify-content: flex-start; gap: 4px; height: 20px;">
+                    <label style="font-size: 11px; font-weight: 600; color: #8a99ad;">Take Profit</label>
+                    <span class="helper-icon"
+                      style="color: var(--text-muted); cursor: pointer; font-size: 10px; display: inline-flex; align-items: center; position: relative; top: -1px;"
+                      id="tp-chart-picker" title="Pick TP on Chart">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                      </svg>
+                    </span>
+                  </div>
+                  <div class="input-with-controls" id="tp-input-container">
+                    <input type="number" id="tp-price-input" placeholder="Not se" min="0.00001" step="any">
+                    <span class="unit-overlay-text">Price ▾</span>
+                    <button class="ctrl-btn minus" id="tp-minus">-</button>
+                    <button class="ctrl-btn plus" id="tp-plus">+</button>
+                  </div>
+                </div>
+                <div class="tp-sl-metrics hidden" id="tp-metrics-display"></div>
+              </div>
+
+              <!-- Stop Loss check & input (visible directly, empty by default) -->
+              <div class="collapsible-trading-option" style="margin-top: 4px;">
+                <div class="option-row-wrapper">
+                  <div class="checkbox-label-row" style="justify-content: flex-start; gap: 4px; height: 20px;">
+                    <label style="font-size: 11px; font-weight: 600; color: #8a99ad;">Stop Loss</label>
+                    <span class="helper-icon"
+                      style="color: var(--text-muted); cursor: pointer; font-size: 10px; display: inline-flex; align-items: center; position: relative; top: -1px;"
+                      id="sl-chart-picker" title="Pick SL on Chart">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                      </svg>
+                    </span>
+                  </div>
+                  <div class="input-with-controls" id="sl-input-container">
+                    <input type="number" id="sl-price-input" placeholder="Not se" min="0.00001" step="any">
+                    <span class="unit-overlay-text">Price ▾</span>
+                    <button class="ctrl-btn minus" id="sl-minus">-</button>
+                    <button class="ctrl-btn plus" id="sl-plus">+</button>
+                  </div>
+                </div>
+                <div class="tp-sl-metrics hidden" id="sl-metrics-display"></div>
+              </div>
+
+              <!-- Confirmation Buttons -->
+              <div id="execution-actions-container" class="execution-actions-container hidden">
+                <button id="execute-btn" class="bitstar-confirm-btn buy">
+                  Confirm Buy 1 lots
+                </button>
+                <button id="cancel-btn" class="bitstar-cancel-btn">
+                  Cancel
+                </button>
+              </div>
+
+              <!-- Trade details stats panel -->
+              <div id="terminal-stats-summary" class="terminal-stats-summary hidden">
+                <div class="stat-row">
+                  <span>Spread Cost:</span>
+                  <span class="font-mono text-white" id="summary-fees">≈ 10.00 USD</span>
+                </div>
+                <div class="stat-row">
+                  <span>Commission:</span>
+                  <span class="font-mono text-white">0.00 USD</span>
+                </div>
+                <div class="stat-row">
+                  <span>Leverage:</span>
+                  <span class="font-mono text-white" id="summary-leverage">1:400</span>
+                </div>
+                <div class="stat-row">
+                  <span>Margin:</span>
+                  <span class="font-mono text-white" id="summary-margin">158.67 USD</span>
+                </div>
+                <div class="stat-row">
+                  <span>Est. Liq Price:</span>
+                  <span class="font-mono text-white" id="summary-liq-price">-</span>
+                </div>
+                <div class="more-details-trigger">More ▾</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- End of workspace-content-area wrapper -->
+        </div>
+    </main>
+
+    <!-- Bottom Horizontal Account Stats Bar (Zuperior Style) -->
+    <div class="bottom-account-stats-bar">
+      <div class="left-stats">
+        <div class="stat-box">
+          <span class="label">Equity:</span>
+          <span class="val font-mono" id="equity-display-val">10000.00 USD</span>
+        </div>
+        <div class="stat-box">
+          <span class="label">Free Margin:</span>
+          <span class="val font-mono" id="free-margin-display-val">10000.00 USD</span>
+        </div>
+        <div class="stat-box">
+          <span class="label">Balance:</span>
+          <span class="val font-mono" id="balance-display-val">10000.00 USD</span>
+        </div>
+        <div class="stat-box">
+          <span class="label">Margin:</span>
+          <span class="val font-mono" id="margin-display-val">0.00 USD</span>
+        </div>
+        <div class="stat-box">
+          <span class="label">Margin level:</span>
+          <span class="val font-mono" id="margin-level-display-val">0.00%</span>
+        </div>
+      </div>
+      <div class="right-stats" style="display: flex; align-items: center; gap: 8px;">
+        <span class="label">Total P/L, USD:</span>
+        <span class="val font-mono font-up" id="total-pnl-display-val">+0.00</span>
+        <button class="close-all-btn" id="close-all-positions-btn">Close all ▾</button>
+        <!-- Latency signal indicator -->
+        <div style="display: flex; align-items: center; gap: 4px; margin-left: 202px; color: #00c076; font-size: 9.5px;"
+          id="latency-indicator">
+          <svg width="12" height="10" viewBox="0 0 12 10" fill="currentColor">
+            <rect x="0" y="8" width="1.5" height="2" rx="0.5"></rect>
+            <rect x="2.5" y="6" width="1.5" height="4" rx="0.5"></rect>
+            <rect x="5" y="4" width="1.5" height="6" rx="0.5"></rect>
+            <rect x="7.5" y="2" width="1.5" height="8" rx="0.5"></rect>
+            <rect x="10" y="0" width="1.5" height="10" rx="0.5"></rect>
+          </svg>
+          <span class="font-mono">-- ms</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+  <!-- Settings Modal -->
+  <div class="broker-modal-overlay hidden" id="settings-modal">
+    <div class="broker-modal-content" style="max-width: 420px;">
+      <div class="modal-header">
+        <h3>Terminal Settings</h3>
+        <span class="modal-close-btn" id="close-settings-btn">&times;</span>
+      </div>
+      <div class="settings-form-wrapper">
+        <div class="settings-card">
+          <h3 style="margin-bottom: 8px;">Chart Features</h3>
+          <div class="form-group"
+            style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0; padding: 4px 0;">
+            <label for="toggle-volume-setting"
+              style="font-size: 11px; cursor: pointer; text-transform: none; font-weight: 500; margin-bottom: 0; color: #fff;">Show
+              Volume Histogram</label>
+            <label class="switch-container">
+              <input type="checkbox" id="toggle-volume-setting" checked>
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Container -->
+  <div class="notification-container" id="notifications-wrapper"></div>
+
+  <!-- Main JS script -->
+  <script type="module" src="/src/main.js?v=1.0.2"></script>
+</body>
+
+</html>

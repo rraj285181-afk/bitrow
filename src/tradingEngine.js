@@ -20,20 +20,20 @@ class TradingEngine {
 
   // Load from localStorage or initialize defaults
   loadState() {
-    const saved = localStorage.getItem(this.storageKey);
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem(this.storageKey);
+      if (saved) {
         const parsed = JSON.parse(saved);
         this.accountId = parsed.accountId || this.generateAccountId();
         this.balance = parseFloat(parsed.balance) || 10000.00;
         this.positions = parsed.positions || [];
         this.pendingOrders = parsed.pendingOrders || [];
         this.history = parsed.history || [];
-      } catch (e) {
-        console.error("Failed to parse trading state, resetting to defaults", e);
+      } else {
         this.resetDefaults();
       }
-    } else {
+    } catch (e) {
+      console.error("Failed to load trading state from localStorage:", e);
       this.resetDefaults();
     }
     this.recalculateStats({});
@@ -48,14 +48,18 @@ class TradingEngine {
   }
 
   saveState() {
-    const state = {
-      accountId: this.accountId,
-      balance: this.balance,
-      positions: this.positions,
-      pendingOrders: this.pendingOrders,
-      history: this.history
-    };
-    localStorage.setItem(this.storageKey, JSON.stringify(state));
+    try {
+      const state = {
+        accountId: this.accountId,
+        balance: this.balance,
+        positions: this.positions,
+        pendingOrders: this.pendingOrders,
+        history: this.history
+      };
+      localStorage.setItem(this.storageKey, JSON.stringify(state));
+    } catch (e) {
+      console.error("Failed to save trading state to localStorage:", e);
+    }
   }
 
   generateAccountId() {
@@ -385,6 +389,45 @@ class TradingEngine {
       this.logNotification('info', 'Limit Order Placed', `Set Limit ${type} ${volume} ${symbol.split('/')[0]} @ $${price.toFixed(2)}`);
     }
 
+    this.recalculateStats({});
+    this.notify();
+    return true;
+  }
+
+  // Modifies Stop Loss and Take Profit of an open position
+  modifyPositionSLTP(positionId, sl, tp) {
+    const index = this.positions.findIndex(p => p.id === positionId);
+    if (index === -1) return false;
+
+    const pos = this.positions[index];
+    const currentPrice = pos.currentPrice;
+
+    if (sl !== undefined && sl !== null) {
+      if (pos.type === 'BUY' && sl >= currentPrice) {
+        this.logNotification('error', 'Invalid Stop Loss', `SL for Buy position must be below current price ($${currentPrice.toFixed(2)}).`);
+        return false;
+      }
+      if (pos.type === 'SELL' && sl <= currentPrice) {
+        this.logNotification('error', 'Invalid Stop Loss', `SL for Sell position must be above current price ($${currentPrice.toFixed(2)}).`);
+        return false;
+      }
+      pos.sl = sl;
+    }
+
+    if (tp !== undefined && tp !== null) {
+      if (pos.type === 'BUY' && tp <= currentPrice) {
+        this.logNotification('error', 'Invalid Take Profit', `TP for Buy position must be above current price ($${currentPrice.toFixed(2)}).`);
+        return false;
+      }
+      if (pos.type === 'SELL' && tp >= currentPrice) {
+        this.logNotification('error', 'Invalid Take Profit', `TP for Sell position must be below current price ($${currentPrice.toFixed(2)}).`);
+        return false;
+      }
+      pos.tp = tp;
+    }
+
+    this.saveState();
+    this.logNotification('success', 'SL/TP Updated', `Position SL/TP updated successfully.`);
     this.recalculateStats({});
     this.notify();
     return true;

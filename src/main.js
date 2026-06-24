@@ -9,6 +9,7 @@ let activeTimeframe = 5; // 5m default like in screenshot
 let currentOrderType = 'MARKET'; // 'MARKET' or 'LIMIT'
 let isBuyActive = null; // BUY, SELL, or null (neutral)
 let lotSizeValue = 0.01;
+let currentFormMode = 'regular'; // 'regular', 'oneclick', or 'riskcalc'
 
 // Chart references
 let chart = null;
@@ -40,6 +41,9 @@ let isStayInDrawingMode = false;
 let isDrawingsLocked = false;
 let isDrawingsHidden = false;
 let lastSeenHistoryVersion = {};
+let activeAlerts = [];
+let triggeredAlerts = [];
+let isPickingAlertPrice = false;
 
 // Initialize when DOM loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -89,46 +93,142 @@ function initApp() {
     });
   }
   
-  // Instruments panel bindings
+  // Instruments, Alerts & Settings sidebar panel bindings
   const instrumentsBtn = document.getElementById('sidebar-btn-instruments');
   const instrumentsPanel = document.getElementById('instruments-sidebar-panel');
+  const alertsBtn = document.getElementById('sidebar-btn-alerts');
+  const alertsPanel = document.getElementById('alerts-sidebar-panel');
+  const settingsBtn = document.getElementById('sidebar-btn-settings');
+  const settingsPanel = document.getElementById('settings-sidebar-panel');
+
+  console.log('Sidebar elements initialized:', {
+    instrumentsBtn: !!instrumentsBtn,
+    instrumentsPanel: !!instrumentsPanel,
+    alertsBtn: !!alertsBtn,
+    alertsPanel: !!alertsPanel,
+    settingsBtn: !!settingsBtn,
+    settingsPanel: !!settingsPanel
+  });
+
+  function updateSidebarActiveStates() {
+    if (instrumentsBtn) {
+      if (instrumentsPanel && !instrumentsPanel.classList.contains('hidden')) {
+        instrumentsBtn.classList.add('active');
+      } else {
+        instrumentsBtn.classList.remove('active');
+      }
+    }
+    if (alertsBtn) {
+      if (alertsPanel && !alertsPanel.classList.contains('hidden')) {
+        alertsBtn.classList.add('active');
+      } else {
+        alertsBtn.classList.remove('active');
+      }
+    }
+    if (settingsBtn) {
+      if (settingsPanel && !settingsPanel.classList.contains('hidden')) {
+        settingsBtn.classList.add('active');
+      } else {
+        settingsBtn.classList.remove('active');
+      }
+    }
+  }
+
   if (instrumentsBtn && instrumentsPanel) {
     instrumentsBtn.addEventListener('click', () => {
+      console.log('Instruments button clicked, toggle hidden. Current state:', instrumentsPanel.classList.contains('hidden'));
       instrumentsPanel.classList.toggle('hidden');
       if (!instrumentsPanel.classList.contains('hidden')) {
+        if (alertsPanel) alertsPanel.classList.add('hidden');
+        if (settingsPanel) settingsPanel.classList.add('hidden');
         renderInstrumentsList();
       }
+      updateSidebarActiveStates();
     });
+  } else {
+    console.warn('sidebar-btn-instruments or instruments-sidebar-panel missing!');
   }
 
-  // Settings modal bindings
-  const settingsBtn = document.getElementById('sidebar-btn-settings');
-  const settingsModal = document.getElementById('settings-modal');
-  const closeSettingsBtn = document.getElementById('close-settings-btn');
-  const toggleVolumeSetting = document.getElementById('toggle-volume-setting');
+  if (alertsBtn && alertsPanel) {
+    alertsBtn.addEventListener('click', () => {
+      console.log('Price Alerts button clicked, toggle hidden. Current state:', alertsPanel.classList.contains('hidden'));
+      alertsPanel.classList.toggle('hidden');
+      if (!alertsPanel.classList.contains('hidden')) {
+        if (instrumentsPanel) instrumentsPanel.classList.add('hidden');
+        if (settingsPanel) settingsPanel.classList.add('hidden');
+        renderAlertsList();
+        populateAlertSymbolSelect();
+      }
+      updateSidebarActiveStates();
+    });
+  } else {
+    console.warn('sidebar-btn-alerts or alerts-sidebar-panel missing!');
+  }
 
-  if (settingsBtn && settingsModal) {
+  if (settingsBtn && settingsPanel) {
     settingsBtn.addEventListener('click', () => {
-      settingsModal.classList.remove('hidden');
-      if (toggleVolumeSetting) {
-        toggleVolumeSetting.checked = isVolumeVisible;
+      console.log('Settings button clicked, toggle hidden. Current state:', settingsPanel.classList.contains('hidden'));
+      settingsPanel.classList.toggle('hidden');
+      if (!settingsPanel.classList.contains('hidden')) {
+        if (instrumentsPanel) instrumentsPanel.classList.add('hidden');
+        if (alertsPanel) alertsPanel.classList.add('hidden');
+        const toggleVolumeSetting = document.getElementById('toggle-volume-setting');
+        if (toggleVolumeSetting) {
+          toggleVolumeSetting.checked = isVolumeVisible;
+        }
+      }
+      updateSidebarActiveStates();
+    });
+  } else {
+    console.warn('sidebar-btn-settings or settings-sidebar-panel missing!');
+  }
+
+  const createAlertBtn = document.getElementById('create-alert-btn');
+  if (createAlertBtn) {
+    createAlertBtn.addEventListener('click', handleCreateAlert);
+  }
+
+  const clearAllAlertsBtn = document.getElementById('clear-all-alerts-btn');
+  if (clearAllAlertsBtn) {
+    clearAllAlertsBtn.addEventListener('click', () => {
+      activeAlerts = [];
+      saveAlerts();
+      renderAlertsList();
+      updateChartPriceLines(tradingEngine.positions, tradingEngine.pendingOrders);
+      showToast('info', 'Alerts Cleared', 'All active price alerts have been cleared.');
+    });
+  }
+
+  const alertPickerBtn = document.getElementById('alert-chart-picker-btn');
+  if (alertPickerBtn) {
+    alertPickerBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isPickingAlertPrice = !isPickingAlertPrice;
+      isPickingTp = false;
+      isPickingSl = false;
+      
+      const tpPicker = document.getElementById('tp-chart-picker');
+      const slPicker = document.getElementById('sl-chart-picker');
+      if (tpPicker) tpPicker.classList.remove('picking');
+      if (slPicker) slPicker.classList.remove('picking');
+      
+      const chartContainer = document.getElementById('chart-container');
+      if (isPickingAlertPrice) {
+        alertPickerBtn.classList.add('alert-picker-active');
+        if (chartContainer) chartContainer.style.cursor = 'crosshair';
+        showToast('info', 'Price Alert Selection', 'Click on the chart to set your trigger price.');
+      } else {
+        alertPickerBtn.classList.remove('alert-picker-active');
+        if (chartContainer) chartContainer.style.cursor = 'default';
       }
     });
   }
 
-  if (closeSettingsBtn && settingsModal) {
-    closeSettingsBtn.addEventListener('click', () => {
-      settingsModal.classList.add('hidden');
-    });
-  }
+  // Load saved alerts
+  loadAlerts();
 
-  if (settingsModal) {
-    settingsModal.addEventListener('click', (e) => {
-      if (e.target === settingsModal) {
-        settingsModal.classList.add('hidden');
-      }
-    });
-  }
+  // Settings change listener
+  const toggleVolumeSetting = document.getElementById('toggle-volume-setting');
 
   if (toggleVolumeSetting) {
     toggleVolumeSetting.addEventListener('change', (e) => {
@@ -137,7 +237,12 @@ function initApp() {
         volumeSeries.applyOptions({ visible: isVolumeVisible });
       }
       
-      const saved = localStorage.getItem('bitstar_chart_layout');
+      let saved = null;
+      try {
+        saved = localStorage.getItem('bitstar_chart_layout');
+      } catch (err) {
+        console.warn("Failed to read layout from localStorage:", err);
+      }
       let layout = {};
       if (saved) {
         try {
@@ -145,7 +250,11 @@ function initApp() {
         } catch (err) {}
       }
       layout.volumeVisible = isVolumeVisible;
-      localStorage.setItem('bitstar_chart_layout', JSON.stringify(layout));
+      try {
+        localStorage.setItem('bitstar_chart_layout', JSON.stringify(layout));
+      } catch (err) {
+        console.warn("Failed to write layout to localStorage:", err);
+      }
       
       showToast('info', 'Settings Updated', `Volume display turned ${isVolumeVisible ? 'ON' : 'OFF'}.`);
     });
@@ -354,6 +463,18 @@ function updateWorkspaceState() {
 
 
 function switchAsset(symbol, tabElement) {
+  const rightWorkspace = document.querySelector('.right-workspace');
+  if (rightWorkspace) {
+    rightWorkspace.classList.remove('hidden');
+    // Force a resize check for chart
+    if (chart) {
+      const container = document.getElementById('chart-container');
+      if (container) {
+        chart.resize(container.clientWidth, container.clientHeight);
+      }
+    }
+  }
+
   if (activeSymbol === symbol) {
     document.querySelectorAll('.asset-tab').forEach(t => t.classList.remove('active'));
     tabElement.classList.add('active');
@@ -619,6 +740,46 @@ function initChart() {
   });
   resizeObserver.observe(container);
 
+  // Bind right-click and double-click handlers for interactive SL/TP chart context menu
+  container.addEventListener('dblclick', (e) => {
+    if (isPickingTp || isPickingSl || isPickingAlertPrice || activeDrawingTool) return;
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const activeSeries = getActiveSeries();
+    if (!activeSeries) return;
+
+    const price = activeSeries.coordinateToPrice(y);
+    if (!price) return;
+
+    const coin = marketEngine.coins[getMappedSymbol()];
+    const dec = coin ? coin.decimalPlaces : 2;
+    const formattedPrice = parseFloat(price.toFixed(dec));
+
+    showChartContextMenu(x, y, formattedPrice);
+  });
+
+  container.addEventListener('contextmenu', (e) => {
+    if (isPickingTp || isPickingSl || isPickingAlertPrice || activeDrawingTool) return;
+    e.preventDefault();
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const activeSeries = getActiveSeries();
+    if (!activeSeries) return;
+
+    const price = activeSeries.coordinateToPrice(y);
+    if (!price) return;
+
+    const coin = marketEngine.coins[getMappedSymbol()];
+    const dec = coin ? coin.decimalPlaces : 2;
+    const formattedPrice = parseFloat(price.toFixed(dec));
+
+    showChartContextMenu(x, y, formattedPrice);
+  });
+
   // Subscribe to clicks on chart for picking TP/SL price and drawing tools
   chart.subscribeClick((param) => {
     if (!param || !param.point) return;
@@ -654,6 +815,16 @@ function initChart() {
       updateTempSlLine(formattedPrice);
       updateOrderCalculations();
       showToast('success', 'Stop Loss Set', `SL price set to ${formattedPrice} from chart.`);
+      return;
+    }
+
+    // Handle Alert picking
+    if (isPickingAlertPrice) {
+      document.getElementById('alert-price-input').value = formattedPrice;
+      isPickingAlertPrice = false;
+      document.getElementById('alert-chart-picker-btn').classList.remove('alert-picker-active');
+      container.style.cursor = 'default';
+      showToast('success', 'Alert Price Set', `Alert price set to ${formattedPrice} from chart.`);
       return;
     }
 
@@ -1041,21 +1212,70 @@ function initTradingForm() {
   if (buyTriggerBox) buyTriggerBox.classList.remove('active');
   executeUpdateButtonUI();
 
+  // Form Selector Dropdown setup
+  const formSelectorTrigger = document.getElementById('form-selector-trigger');
+  const formSelectorDropdownMenu = document.getElementById('form-selector-dropdown-menu');
+  const formSelectorLabel = document.getElementById('form-selector-label');
+
+  if (formSelectorTrigger && formSelectorDropdownMenu) {
+    formSelectorTrigger.addEventListener('click', (e) => {
+      // Toggle dropdown visibility
+      if (e.target.classList.contains('form-select-option')) return;
+      formSelectorDropdownMenu.classList.toggle('hidden');
+    });
+
+    const options = formSelectorDropdownMenu.querySelectorAll('.form-select-option');
+    options.forEach(option => {
+      option.addEventListener('click', (e) => {
+        e.stopPropagation();
+        options.forEach(o => o.classList.remove('active'));
+        option.classList.add('active');
+        formSelectorLabel.textContent = option.textContent;
+        switchFormMode(option.getAttribute('data-value'));
+        formSelectorDropdownMenu.classList.add('hidden');
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!formSelectorTrigger.contains(e.target)) {
+        formSelectorDropdownMenu.classList.add('hidden');
+      }
+    });
+  }
+
   // Split buy/sell triggers
   sellTriggerBox.addEventListener('click', () => {
-    isBuyActive = false;
-    sellTriggerBox.classList.add('active');
-    buyTriggerBox.classList.remove('active');
-    executeUpdateButtonUI();
-    updateOrderCalculations();
+    if (currentFormMode === 'oneclick') {
+      isBuyActive = false;
+      handleExecuteOrder();
+      isBuyActive = null;
+      sellTriggerBox.classList.remove('active');
+      buyTriggerBox.classList.remove('active');
+      executeUpdateButtonUI();
+    } else {
+      isBuyActive = false;
+      sellTriggerBox.classList.add('active');
+      buyTriggerBox.classList.remove('active');
+      executeUpdateButtonUI();
+      updateOrderCalculations();
+    }
   });
 
   buyTriggerBox.addEventListener('click', () => {
-    isBuyActive = true;
-    buyTriggerBox.classList.add('active');
-    sellTriggerBox.classList.remove('active');
-    executeUpdateButtonUI();
-    updateOrderCalculations();
+    if (currentFormMode === 'oneclick') {
+      isBuyActive = true;
+      handleExecuteOrder();
+      isBuyActive = null;
+      sellTriggerBox.classList.remove('active');
+      buyTriggerBox.classList.remove('active');
+      executeUpdateButtonUI();
+    } else {
+      isBuyActive = true;
+      buyTriggerBox.classList.add('active');
+      sellTriggerBox.classList.remove('active');
+      executeUpdateButtonUI();
+      updateOrderCalculations();
+    }
   });
 
   // Market vs Pending switchers
@@ -1145,7 +1365,80 @@ function initTradingForm() {
     buyTriggerBox.classList.remove('active');
     executeUpdateButtonUI();
     showToast('info', 'Order Cancelled', 'Trade submission aborted.');
+    
+    // Hide trading terminal right panel
+    const rightWorkspacePanel = document.querySelector('.right-workspace');
+    if (rightWorkspacePanel) {
+      rightWorkspacePanel.classList.add('hidden');
+      setTimeout(() => {
+        if (chart) {
+          const container = document.getElementById('chart-container');
+          if (container) {
+            chart.resize(container.clientWidth, container.clientHeight);
+          }
+        }
+      }, 300);
+    }
   });
+
+  // Close terminal button binding
+  const closeTerminalBtn = document.querySelector('.close-terminal-btn');
+  const rightWorkspace = document.querySelector('.right-workspace');
+  if (closeTerminalBtn && rightWorkspace) {
+    closeTerminalBtn.addEventListener('click', () => {
+      console.log('Close terminal panel clicked.');
+      rightWorkspace.classList.add('hidden');
+      setTimeout(() => {
+        if (chart) {
+          const container = document.getElementById('chart-container');
+          if (container) {
+            chart.resize(container.clientWidth, container.clientHeight);
+          }
+        }
+      }, 300);
+    });
+  }
+}
+
+function switchFormMode(mode) {
+  currentFormMode = mode;
+  
+  const riskCalcGroup = document.getElementById('risk-calc-group');
+  if (mode === 'riskcalc') {
+    if (riskCalcGroup) riskCalcGroup.classList.remove('hidden');
+  } else {
+    if (riskCalcGroup) riskCalcGroup.classList.add('hidden');
+  }
+
+  // Adjust volume inputs readonly / disabled state in riskcalc mode
+  const volInput = document.getElementById('order-volume-input');
+  const volMinus = document.getElementById('volume-minus');
+  const volPlus = document.getElementById('volume-plus');
+  if (mode === 'riskcalc') {
+    if (volInput) volInput.readOnly = true;
+    if (volMinus) volMinus.disabled = true;
+    if (volPlus) volPlus.disabled = true;
+  } else {
+    if (volInput) volInput.readOnly = false;
+    if (volMinus) volMinus.disabled = false;
+    if (volPlus) volPlus.disabled = false;
+  }
+
+  if (mode === 'oneclick') {
+    isBuyActive = null;
+    const sellTrigger = document.getElementById('action-sell-trigger');
+    const buyTrigger = document.getElementById('action-buy-trigger');
+    if (sellTrigger) sellTrigger.classList.remove('active');
+    if (buyTrigger) buyTrigger.classList.remove('active');
+    executeUpdateButtonUI();
+    showToast('info', 'One-Click Form Enabled', 'Clicking Buy or Sell will place orders instantly without confirmation.');
+  } else if (mode === 'riskcalc') {
+    showToast('info', 'Risk Calculator Enabled', 'Volume is automatically calculated based on Risk % of Balance and Stop Loss distance.');
+    updateOrderCalculations();
+  } else {
+    showToast('info', 'Regular Form Enabled', 'Confirm your trades manually before execution.');
+    updateOrderCalculations();
+  }
 }
 
 function setupPlusMinusListeners() {
@@ -1156,23 +1449,49 @@ function setupPlusMinusListeners() {
 
   // Volume
   document.getElementById('volume-plus').addEventListener('click', () => {
+    if (currentFormMode === 'riskcalc') return;
     lotSizeValue = Math.min(100, lotSizeValue + 0.05);
     volInput.value = lotSizeValue.toFixed(2);
     executeUpdateButtonUI();
     updateOrderCalculations();
   });
   document.getElementById('volume-minus').addEventListener('click', () => {
+    if (currentFormMode === 'riskcalc') return;
     lotSizeValue = Math.max(0.01, lotSizeValue - 0.05);
     volInput.value = lotSizeValue.toFixed(2);
     executeUpdateButtonUI();
     updateOrderCalculations();
   });
   volInput.addEventListener('change', () => {
+    if (currentFormMode === 'riskcalc') return;
     lotSizeValue = Math.max(0.01, parseFloat(volInput.value) || 0.01);
     volInput.value = lotSizeValue.toFixed(2);
     executeUpdateButtonUI();
     updateOrderCalculations();
   });
+
+  // Risk percentage controls
+  const riskInput = document.getElementById('risk-percentage-input');
+  if (riskInput) {
+    document.getElementById('risk-plus').addEventListener('click', () => {
+      let val = parseFloat(riskInput.value) || 1.0;
+      val = Math.min(10.0, val + 0.1);
+      riskInput.value = val.toFixed(1);
+      updateOrderCalculations();
+    });
+    document.getElementById('risk-minus').addEventListener('click', () => {
+      let val = parseFloat(riskInput.value) || 1.0;
+      val = Math.max(0.1, val - 0.1);
+      riskInput.value = val.toFixed(1);
+      updateOrderCalculations();
+    });
+    riskInput.addEventListener('change', () => {
+      let val = parseFloat(riskInput.value) || 1.0;
+      val = Math.max(0.1, Math.min(10.0, val));
+      riskInput.value = val.toFixed(1);
+      updateOrderCalculations();
+    });
+  }
 
   // Helper increment price function
   const incPrice = (inputField, scale) => {
@@ -1256,6 +1575,42 @@ function updateOrderCalculations() {
   const price = currentOrderType === 'LIMIT' ? 
     parseFloat(document.getElementById('pending-price-input').value) || coin.currentPrice : 
     coin.currentPrice;
+
+  // If risk calculator is active, automatically calculate the lot size before proceeding
+  if (currentFormMode === 'riskcalc') {
+    const riskPercent = parseFloat(document.getElementById('risk-percentage-input').value) || 1.0;
+    const balance = tradingEngine.balance || 10000.00;
+    const riskUsd = balance * (riskPercent / 100);
+    
+    // Update Risk Amount display
+    const riskAmountDisplay = document.getElementById('risk-amount-display');
+    if (riskAmountDisplay) {
+      riskAmountDisplay.textContent = `${riskUsd.toFixed(2)} USD`;
+    }
+
+    const slVal = parseFloat(document.getElementById('sl-price-input').value) || 0;
+    if (slVal > 0) {
+      const priceDiff = Math.abs(price - slVal);
+      if (priceDiff > 0) {
+        const lotMultiplier = getLotMultiplier();
+        const lossPerLot = priceDiff * lotMultiplier;
+        let calculatedLots = riskUsd / lossPerLot;
+        
+        // Cap calculated lots to max 100 and min 0.01
+        calculatedLots = Math.max(0.01, Math.min(100.0, calculatedLots));
+        
+        lotSizeValue = calculatedLots;
+        const volInput = document.getElementById('order-volume-input');
+        if (volInput) {
+          volInput.value = lotSizeValue.toFixed(2);
+        }
+      }
+    } else {
+      if (riskAmountDisplay) {
+        riskAmountDisplay.textContent = `${riskUsd.toFixed(2)} USD (Set SL)`;
+      }
+    }
+  }
 
   // Bitstar standard lot volume calculations
   const lotMultiplier = getLotMultiplier();
@@ -1374,10 +1729,245 @@ function handleExecuteOrder() {
   }
 }
 
+
+
+// ----------------------------------------------------
+// Price Alerts Engine
+// ----------------------------------------------------
+function loadAlerts() {
+  try {
+    const savedActive = localStorage.getItem('bitstar_active_alerts_v1');
+    const savedTriggered = localStorage.getItem('bitstar_triggered_alerts_v1');
+    activeAlerts = savedActive ? JSON.parse(savedActive) : [];
+    triggeredAlerts = savedTriggered ? JSON.parse(savedTriggered) : [];
+  } catch (e) {
+    console.error("Failed to load alerts from localStorage:", e);
+    activeAlerts = [];
+    triggeredAlerts = [];
+  }
+}
+
+function saveAlerts() {
+  try {
+    localStorage.setItem('bitstar_active_alerts_v1', JSON.stringify(activeAlerts));
+    localStorage.setItem('bitstar_triggered_alerts_v1', JSON.stringify(triggeredAlerts));
+  } catch (e) {
+    console.error("Failed to save alerts to localStorage:", e);
+  }
+}
+
+function playAlertSound() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+    
+    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.6);
+  } catch (e) {
+    console.error("Audio Context not allowed or failed:", e);
+  }
+}
+
+function renderAlertsList() {
+  const activeList = document.getElementById('active-alerts-list');
+  const triggeredList = document.getElementById('triggered-alerts-list');
+  if (!activeList || !triggeredList) return;
+
+  activeList.innerHTML = '';
+  if (activeAlerts.length === 0) {
+    const emptyMsg = document.createElement('div');
+    emptyMsg.style.color = 'var(--text-muted)';
+    emptyMsg.style.fontSize = '10px';
+    emptyMsg.style.textAlign = 'center';
+    emptyMsg.style.padding = '12px 0';
+    emptyMsg.textContent = 'No active alerts.';
+    activeList.appendChild(emptyMsg);
+  } else {
+    activeAlerts.forEach((alert, index) => {
+      const item = document.createElement('div');
+      item.className = 'alert-item';
+      
+      const left = document.createElement('div');
+      left.className = 'alert-item-left';
+      
+      const symbol = document.createElement('div');
+      symbol.className = 'alert-item-symbol';
+      symbol.textContent = alert.symbol;
+      
+      const condition = document.createElement('div');
+      const isAbove = alert.condition === 'above';
+      condition.className = `alert-item-condition ${isAbove ? 'above' : 'below'}`;
+      condition.textContent = `${isAbove ? 'Rises above (≥)' : 'Falls below (≤)'} ${alert.price.toFixed(marketEngine.coins[alert.symbol]?.decimalPlaces || 2)}`;
+      
+      left.appendChild(symbol);
+      left.appendChild(condition);
+      
+      const right = document.createElement('div');
+      right.className = 'alert-item-right';
+      
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'alert-delete-btn';
+      deleteBtn.innerHTML = '×';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        activeAlerts.splice(index, 1);
+        saveAlerts();
+        renderAlertsList();
+        updateChartPriceLines(tradingEngine.positions, tradingEngine.pendingOrders);
+        showToast('info', 'Alert Deleted', `Alert for ${alert.symbol} removed.`);
+      });
+      
+      right.appendChild(deleteBtn);
+      
+      item.appendChild(left);
+      item.appendChild(right);
+      activeList.appendChild(item);
+    });
+  }
+
+  triggeredList.innerHTML = '';
+  if (triggeredAlerts.length === 0) {
+    const emptyMsg = document.createElement('div');
+    emptyMsg.textContent = 'No triggered alerts.';
+    triggeredList.appendChild(emptyMsg);
+  } else {
+    triggeredAlerts.forEach(alert => {
+      const item = document.createElement('div');
+      item.style.padding = '4px 0';
+      item.style.borderBottom = '1px solid rgba(255, 255, 255, 0.02)';
+      item.style.display = 'flex';
+      item.style.justifyContent = 'space-between';
+      
+      const timeStr = new Date(alert.triggeredAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+      const text = document.createElement('span');
+      text.textContent = `${alert.symbol} reached ${alert.price} (${alert.condition === 'above' ? '≥' : '≤'})`;
+      
+      const time = document.createElement('span');
+      time.style.color = 'var(--text-muted)';
+      time.style.fontSize = '9px';
+      time.textContent = timeStr;
+      
+      item.appendChild(text);
+      item.appendChild(time);
+      triggeredList.appendChild(item);
+    });
+  }
+}
+
+function populateAlertSymbolSelect() {
+  const select = document.getElementById('alert-symbol-select');
+  if (!select) return;
+  
+  select.innerHTML = '';
+  Object.keys(marketEngine.coins).forEach(sym => {
+    const opt = document.createElement('option');
+    opt.value = sym;
+    opt.textContent = sym;
+    if (sym === getMappedSymbol()) {
+      opt.selected = true;
+    }
+    select.appendChild(opt);
+  });
+}
+
+function handleCreateAlert() {
+  const symbolSelect = document.getElementById('alert-symbol-select');
+  const conditionSelect = document.getElementById('alert-condition-select');
+  const priceInput = document.getElementById('alert-price-input');
+  
+  if (!symbolSelect || !conditionSelect || !priceInput) return;
+  
+  const symbol = symbolSelect.value;
+  const condition = conditionSelect.value;
+  const price = parseFloat(priceInput.value);
+  
+  if (isNaN(price) || price <= 0) {
+    showToast('error', 'Invalid Price', 'Please enter a valid trigger price.');
+    return;
+  }
+  
+  const newAlert = {
+    id: 'alt_' + Math.random().toString(36).substring(2, 11),
+    symbol,
+    condition,
+    price,
+    createdAt: Date.now()
+  };
+  
+  activeAlerts.push(newAlert);
+  saveAlerts();
+  renderAlertsList();
+  updateChartPriceLines(tradingEngine.positions, tradingEngine.pendingOrders);
+  
+  priceInput.value = '';
+  showToast('success', 'Alert Created', `Alert set for ${symbol} at ${price}`);
+}
+
+function checkPriceAlerts(coins) {
+  let alertsTriggered = false;
+  
+  activeAlerts = activeAlerts.filter(alert => {
+    const coin = coins[alert.symbol];
+    if (!coin) return true;
+    
+    const currentPrice = coin.currentPrice;
+    let triggered = false;
+    
+    if (alert.condition === 'above') {
+      if (currentPrice >= alert.price) {
+        triggered = true;
+      }
+    } else if (alert.condition === 'below') {
+      if (currentPrice <= alert.price) {
+        triggered = true;
+      }
+    }
+    
+    if (triggered) {
+      alertsTriggered = true;
+      playAlertSound();
+      showToast('success', 'Price Alert Triggered', `${alert.symbol} reached ${alert.price} (Current: ${currentPrice.toFixed(coin.decimalPlaces)})`);
+      
+      triggeredAlerts.unshift({
+        symbol: alert.symbol,
+        condition: alert.condition,
+        price: alert.price,
+        triggeredAt: Date.now()
+      });
+      
+      if (triggeredAlerts.length > 20) {
+        triggeredAlerts.pop();
+      }
+      
+      return false;
+    }
+    
+    return true;
+  });
+  
+  if (alertsTriggered) {
+    saveAlerts();
+    renderAlertsList();
+    updateChartPriceLines(tradingEngine.positions, tradingEngine.pendingOrders);
+  }
+}
+
 // ----------------------------------------------------
 // Ticker Subscriptions
 // ----------------------------------------------------
 function handleMarketTick(coins) {
+  // Check price alerts first
+  checkPriceAlerts(coins);
   // Update instruments sidebar panel prices
   updateInstrumentsPrices(coins);
 
@@ -1956,6 +2546,207 @@ function updateChartPriceLines(positions, pendingOrders) {
     });
     activeChartPriceLines.push(limitLine);
   });
+
+  // Draw active alerts lines
+  if (typeof activeAlerts !== 'undefined') {
+    activeAlerts.forEach(alert => {
+      if (alert.symbol !== currentMapped) return;
+      
+      const condSymbol = alert.condition === 'above' ? '≥' : '≤';
+      const alertLine = candlestickSeries.createPriceLine({
+        price: alert.price,
+        color: '#bf5af2', // purple for alerts
+        lineWidth: 1.5,
+        lineStyle: 3, // dotted
+        axisLabelVisible: true,
+        title: `Alert ${condSymbol} ${alert.price}`
+      });
+      activeChartPriceLines.push(alertLine);
+    });
+  }
+}
+
+function showChartContextMenu(x, y, price) {
+  const existingMenu = document.getElementById('chart-context-menu');
+  if (existingMenu) existingMenu.remove();
+
+  const keySymbol = getMappedSymbol();
+  const coin = marketEngine.coins[keySymbol];
+  const activeSymbolName = keySymbol.split('/')[0];
+
+  // Get active open positions for this symbol
+  const openPositions = tradingEngine.positions.filter(p => p.symbol === keySymbol);
+
+  // Create menu container
+  const menu = document.createElement('div');
+  menu.id = 'chart-context-menu';
+  menu.style.position = 'absolute';
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+  menu.style.background = 'rgba(21, 26, 35, 0.96)';
+  menu.style.border = '1px solid var(--border-color)';
+  menu.style.borderRadius = '6px';
+  menu.style.boxShadow = '0 8px 32px rgba(0,0,0,0.6)';
+  menu.style.backdropFilter = 'blur(12px)';
+  menu.style.zIndex = '1000';
+  menu.style.padding = '6px';
+  menu.style.width = '200px';
+  menu.style.display = 'flex';
+  menu.style.flexDirection = 'column';
+  menu.style.gap = '2px';
+  menu.style.fontFamily = "'Inter', sans-serif";
+
+  // Price header
+  const header = document.createElement('div');
+  header.style.fontSize = '9px';
+  header.style.color = 'var(--text-secondary)';
+  header.style.padding = '4px 8px';
+  header.style.borderBottom = '1px solid var(--border-color)';
+  header.style.marginBottom = '4px';
+  header.style.fontFamily = 'monospace';
+  header.style.fontWeight = 'bold';
+  header.textContent = `${price} ${activeSymbolName}`;
+  menu.appendChild(header);
+
+  // Helper function to create menu item
+  const createMenuItem = (text, onClick, colorClass) => {
+    const item = document.createElement('div');
+    item.className = 'chart-menu-item';
+    item.style.padding = '6px 8px';
+    item.style.fontSize = '11px';
+    item.style.color = '#fff';
+    item.style.cursor = 'pointer';
+    item.style.borderRadius = '4px';
+    item.style.display = 'flex';
+    item.style.alignItems = 'center';
+    item.style.gap = '8px';
+    item.style.transition = 'all 0.1s ease';
+    
+    // Dot indicator
+    const dot = document.createElement('span');
+    dot.style.display = 'inline-block';
+    dot.style.width = '6px';
+    dot.style.height = '6px';
+    dot.style.borderRadius = '50%';
+    if (colorClass === 'green') {
+      dot.style.background = '#00c076';
+    } else if (colorClass === 'red') {
+      dot.style.background = '#e25241';
+    } else if (colorClass === 'purple') {
+      dot.style.background = '#bf5af2';
+    } else {
+      dot.style.background = 'var(--text-secondary)';
+    }
+    
+    item.appendChild(dot);
+    const label = document.createElement('span');
+    label.textContent = text;
+    item.appendChild(label);
+
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onClick();
+      menu.remove();
+    });
+    
+    item.onmouseenter = () => { item.style.backgroundColor = 'rgba(255,255,255,0.06)'; };
+    item.onmouseleave = () => { item.style.backgroundColor = 'transparent'; };
+
+    return item;
+  };
+
+  // 1. Action: Set TP for Order Form
+  menu.appendChild(createMenuItem('Set TP for Pending Order', () => {
+    const tpInput = document.getElementById('tp-price-input');
+    if (tpInput) {
+      tpInput.value = price;
+      updateTempTpLine(price);
+      updateOrderCalculations();
+      showToast('success', 'Take Profit Set', `Order TP set to ${price}`);
+    }
+  }, 'green'));
+
+  // 2. Action: Set SL for Order Form
+  menu.appendChild(createMenuItem('Set SL for Pending Order', () => {
+    const slInput = document.getElementById('sl-price-input');
+    if (slInput) {
+      slInput.value = price;
+      updateTempSlLine(price);
+      updateOrderCalculations();
+      showToast('success', 'Stop Loss Set', `Order SL set to ${price}`);
+    }
+  }, 'red'));
+
+  // 3. Action: Create Price Alert
+  menu.appendChild(createMenuItem('Create Alert Here', () => {
+    if (typeof activeAlerts !== 'undefined') {
+      const currentPrice = coin ? coin.currentPrice : price;
+      const condition = price >= currentPrice ? 'above' : 'below';
+      const alertItem = {
+        id: 'alt_' + Math.random().toString(36).substring(2, 11),
+        symbol: keySymbol,
+        condition: condition,
+        price: price,
+        triggered: false,
+        timestamp: Date.now()
+      };
+      activeAlerts.push(alertItem);
+      saveAlerts();
+      updateChartPriceLines(tradingEngine.positions, tradingEngine.pendingOrders);
+      const alertsList = document.getElementById('active-alerts-list');
+      if (alertsList && typeof renderAlertsList === 'function') {
+        renderAlertsList();
+      }
+      showToast('success', 'Alert Created', `Alert set for ${activeSymbolName} ${condition} ${price}`);
+    }
+  }, 'purple'));
+
+  // 4. Action: Update Open Positions TP/SL
+  if (openPositions.length > 0) {
+    const separator = document.createElement('div');
+    separator.style.height = '1px';
+    separator.style.background = 'var(--border-color)';
+    separator.style.margin = '4px 0';
+    menu.appendChild(separator);
+
+    const posHeader = document.createElement('div');
+    posHeader.style.fontSize = '8px';
+    posHeader.style.color = '#8a99ad';
+    posHeader.style.padding = '2px 8px';
+    posHeader.style.fontWeight = 'bold';
+    posHeader.textContent = 'OPEN POSITIONS';
+    menu.appendChild(posHeader);
+
+    openPositions.forEach(pos => {
+      const posLots = pos.volume / getLotMultiplier();
+      const posLabel = `${pos.type} ${posLots.toFixed(2)} Lot`;
+      
+      menu.appendChild(createMenuItem(`Set TP for ${posLabel}`, () => {
+        tradingEngine.modifyPositionSLTP(pos.id, undefined, price);
+        showToast('success', 'Position TP Set', `Position TP updated to ${price}`);
+      }, 'green'));
+
+      menu.appendChild(createMenuItem(`Set SL for ${posLabel}`, () => {
+        tradingEngine.modifyPositionSLTP(pos.id, price, undefined);
+        showToast('success', 'Position SL Set', `Position SL updated to ${price}`);
+      }, 'red'));
+    });
+  }
+
+  // Append to chart-wrapper
+  const chartWrapper = document.querySelector('.chart-wrapper');
+  if (chartWrapper) {
+    chartWrapper.appendChild(menu);
+  }
+
+  // Dismiss menu on click anywhere
+  const dismissMenu = () => {
+    menu.remove();
+    document.removeEventListener('click', dismissMenu);
+  };
+  setTimeout(() => {
+    document.addEventListener('click', dismissMenu);
+  }, 10);
 }
 
 function updateTempTpLine(price) {
@@ -2644,8 +3435,13 @@ function initChartUIPanels() {
         drawings: drawings,
         volumeVisible: isVolumeVisible
       };
-      localStorage.setItem('bitstar_chart_layout', JSON.stringify(layout));
-      showToast('success', 'Layout Saved', 'Indicators, drawing lines, and layout preferences successfully saved.');
+      try {
+        localStorage.setItem('bitstar_chart_layout', JSON.stringify(layout));
+        showToast('success', 'Layout Saved', 'Indicators, drawing lines, and layout preferences successfully saved.');
+      } catch (err) {
+        console.error("Failed to write layout to localStorage:", err);
+        showToast('error', 'Save Failed', 'Storage is disabled or unavailable.');
+      }
     });
   }
 }
@@ -2709,7 +3505,12 @@ function updateChartTypeUI() {
 }
 
 function loadSavedLayout() {
-  const saved = localStorage.getItem('bitstar_chart_layout');
+  let saved = null;
+  try {
+    saved = localStorage.getItem('bitstar_chart_layout');
+  } catch (err) {
+    console.warn("Failed to load layout from localStorage:", err);
+  }
   if (saved) {
     try {
       const layout = JSON.parse(saved);

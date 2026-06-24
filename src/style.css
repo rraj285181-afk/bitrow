@@ -713,7 +713,6 @@ input[type="number"]::-webkit-outer-spin-button {
   color: #fff;
 }
 
-/* Right Sidebar: Bitstar Trading Terminal */
 .right-workspace {
   width: 262px;
   background-color: var(--bg-secondary);
@@ -721,6 +720,13 @@ input[type="number"]::-webkit-outer-spin-button {
   flex-direction: column;
   flex-shrink: 0;
   border-left: 1px solid var(--border-color);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.right-workspace.hidden {
+  width: 0 !important;
+  border-left: none !important;
 }
 
 
@@ -3021,4 +3027,120 @@ input[type="number"]::-webkit-outer-spin-button {
   .bottom-timeframe-toolbar .chart-status-container {
     flex-shrink: 0 !important;
   }
+}
+
+/* Price Alerts Styling */
+.alerts-form-container {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alerts-form-container label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.alert-item {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+.alert-item:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.alert-item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.alert-item-symbol {
+  font-weight: 700;
+  color: #fff;
+  font-size: 11px;
+}
+
+.alert-item-condition {
+  font-size: 9.5px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+}
+
+.alert-item-condition.above {
+  color: #00c076;
+}
+
+.alert-item-condition.below {
+  color: var(--color-sell);
+}
+
+.alert-item-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alert-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  transition: all 0.1s ease;
+  line-height: 1;
+}
+
+.alert-delete-btn:hover {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.alert-picker-active {
+  color: var(--accent-color) !important;
+  background-color: rgba(124, 77, 255, 0.15) !important;
+  border-color: var(--accent-color) !important;
+}
+
+/* Form Selector Dropdown */
+.form-selector-dropdown.hidden {
+  display: none !important;
+}
+
+.form-select-option {
+  padding: 8px 10px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 11px;
+  transition: all 0.1s ease;
+  text-align: left;
+}
+
+.form-select-option:hover {
+  background-color: var(--bg-active);
+  color: #fff;
+}
+
+.form-select-option.active {
+  background-color: rgba(124, 77, 255, 0.08);
+  color: #fff;
+  font-weight: 600;
 }

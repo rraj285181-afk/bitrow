@@ -483,6 +483,12 @@ input[type="number"]::-webkit-outer-spin-button {
   gap: 4px;
   z-index: 15;
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+}
+
+.chart-drawing-toolbar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
 }
 
 .chart-drawing-toolbar.collapsed {
@@ -1515,7 +1521,7 @@ input[type="number"]::-webkit-outer-spin-button {
   top: 0;
   left: 36px;
   width: calc(100% - 36px);
-  height: 100%;
+  height: calc(100% - 26px);
   pointer-events: none;
   z-index: 5;
   transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -2966,5 +2972,53 @@ input[type="number"]::-webkit-outer-spin-button {
   /* Fix latency indicator margin on mobile */
   #latency-indicator {
     margin-left: 0 !important;
+  }
+
+  /* Make top asset tabs horizontally scrollable on mobile */
+  .asset-tabs {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    max-width: calc(100vw - 120px) !important;
+    scrollbar-width: none !important;
+    display: flex !important;
+  }
+  .asset-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+  .asset-tab {
+    flex-shrink: 0 !important;
+  }
+
+  /* Make chart options bar scrollable on mobile */
+  .chart-options-bar {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    scrollbar-width: none !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    display: flex !important;
+  }
+  .chart-options-bar::-webkit-scrollbar {
+    display: none !important;
+  }
+  .chart-options-bar .left-group,
+  .chart-options-bar .right-group {
+    flex-shrink: 0 !important;
+  }
+
+  /* Make bottom timeframe toolbar scrollable on mobile */
+  .bottom-timeframe-toolbar {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    scrollbar-width: none !important;
+    gap: 8px !important;
+    display: flex !important;
+  }
+  .bottom-timeframe-toolbar::-webkit-scrollbar {
+    display: none !important;
+  }
+  .bottom-timeframe-toolbar .tf-buttons,
+  .bottom-timeframe-toolbar .chart-status-container {
+    flex-shrink: 0 !important;
   }
 }

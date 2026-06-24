@@ -32,10 +32,13 @@ let bbUpperSeries = null;
 let bbBasisSeries = null;
 let bbLowerSeries = null;
 let drawings = [];
-let activeDrawingTool = null; // 'trendline', 'ruler', or null
+let activeDrawingTool = null; // 'trendline', 'channel', 'gannfan', 'fib', 'brush', 'text', 'emoji', 'ruler', 'zoom', or null
 let drawingStartPoint = null;
 let currentHoverPoint = null;
-
+let isMagnetMode = false;
+let isStayInDrawingMode = false;
+let isDrawingsLocked = false;
+let isDrawingsHidden = false;
 let lastSeenHistoryVersion = {};
 
 // Initialize when DOM loaded
@@ -54,6 +57,37 @@ function initApp() {
   initChart();
   startLiveClock();
   startLatencySimulator();
+  
+  // Initialize drawing toolbar collapsible drawer
+  const collapseBtn = document.getElementById('drawing-toolbar-collapse-btn');
+  const drawingToolbar = document.getElementById('drawing-toolbar');
+  const chartWrapper = document.querySelector('.chart-wrapper');
+  
+  if (collapseBtn && drawingToolbar && chartWrapper) {
+    if (window.innerWidth <= 768) {
+      drawingToolbar.classList.add('collapsed');
+      chartWrapper.classList.add('toolbar-collapsed');
+    }
+    
+    collapseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      drawingToolbar.classList.toggle('collapsed');
+      chartWrapper.classList.toggle('toolbar-collapsed');
+      
+      if (chart) {
+        const container = document.getElementById('chart-container');
+        if (container) {
+          chart.resize(container.clientWidth, container.clientHeight);
+          const canvas = document.getElementById('chart-drawing-canvas');
+          if (canvas) {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            drawCanvas();
+          }
+        }
+      }
+    });
+  }
   
   // Instruments panel bindings
   const instrumentsBtn = document.getElementById('sidebar-btn-instruments');
@@ -592,12 +626,12 @@ function initChart() {
     const activeSeries = getActiveSeries();
     if (!activeSeries) return;
     
-    const price = activeSeries.coordinateToPrice(param.point.y);
+    let price = activeSeries.coordinateToPrice(param.point.y);
     if (!price) return;
 
     const coin = marketEngine.coins[getMappedSymbol()];
     const dec = coin ? coin.decimalPlaces : 2;
-    const formattedPrice = parseFloat(price.toFixed(dec));
+    let formattedPrice = parseFloat(price.toFixed(dec));
 
     // Handle TP picking
     if (isPickingTp) {
@@ -623,8 +657,70 @@ function initChart() {
       return;
     }
 
+    // Magnet mode snapping
+    if (isMagnetMode && param.time) {
+      const keySymbol = getMappedSymbol();
+      const history = marketEngine.getHistory(keySymbol, activeTimeframe);
+      const candle = history.find(c => c.time === param.time);
+      if (candle) {
+        const prices = [candle.open, candle.high, candle.low, candle.close];
+        let closestPrice = prices[0];
+        let minDiff = Math.abs(price - closestPrice);
+        for (let i = 1; i < prices.length; i++) {
+          const diff = Math.abs(price - prices[i]);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestPrice = prices[i];
+          }
+        }
+        price = closestPrice;
+        formattedPrice = parseFloat(price.toFixed(dec));
+      }
+    }
+
     // Handle Drawings click
     if (activeDrawingTool) {
+      if (isDrawingsLocked) {
+        showToast('error', 'Drawings Locked', 'Please unlock drawings first.');
+        return;
+      }
+
+      // One-click tools: text, emoji
+      if (activeDrawingTool === 'text') {
+        const msg = prompt("Enter text annotation:");
+        if (msg) {
+          drawings.push({
+            type: 'text',
+            start: { time: param.time, price: price },
+            text: msg
+          });
+          showToast('success', 'Text Created', 'Text annotation added to chart.');
+          drawCanvas();
+        }
+        if (!isStayInDrawingMode) {
+          setDrawingTool(null, document.getElementById('draw-btn-crosshair'));
+        }
+        return;
+      }
+
+      if (activeDrawingTool === 'emoji') {
+        const emoji = prompt("Enter Emoji sticker (e.g. 🚀, 🔥, 📈, 📉, ⚠️):", "🚀");
+        if (emoji) {
+          drawings.push({
+            type: 'emoji',
+            start: { time: param.time, price: price },
+            emoji: emoji
+          });
+          showToast('success', 'Emoji Added', 'Emoji sticker added to chart.');
+          drawCanvas();
+        }
+        if (!isStayInDrawingMode) {
+          setDrawingTool(null, document.getElementById('draw-btn-crosshair'));
+        }
+        return;
+      }
+
+      // Two-click tools
       if (!drawingStartPoint) {
         drawingStartPoint = {
           time: param.time,
@@ -632,30 +728,72 @@ function initChart() {
           x: param.point.x,
           y: param.point.y
         };
-        showToast('info', 'Start Point Set', `Click again to place the endpoint of your ${activeDrawingTool === 'trendline' ? 'Trend Line' : 'Ruler'}.`);
+        const toolNameMap = {
+          trendline: 'Trend Line',
+          channel: 'Parallel Channel',
+          gannfan: 'Gann Fan',
+          fib: 'Fibonacci Retracement',
+          brush: 'Highlight Brush',
+          ruler: 'Ruler',
+          zoom: 'Zoom Area'
+        };
+        showToast('info', 'Start Point Set', `Click again to place the endpoint of your ${toolNameMap[activeDrawingTool] || activeDrawingTool}.`);
       } else {
         const endPoint = {
           time: param.time,
           price: price
         };
         
-        drawings.push({
-          type: activeDrawingTool,
-          start: { time: drawingStartPoint.time, price: drawingStartPoint.price },
-          end: endPoint
-        });
-        
-        showToast('success', 'Drawing Created', `${activeDrawingTool === 'trendline' ? 'Trend Line' : 'Ruler measurement'} added to chart.`);
+        if (activeDrawingTool === 'zoom') {
+          // Zoom in
+          const timeScale = chart.timeScale();
+          const log1 = timeScale.timeToCoordinate(drawingStartPoint.time);
+          const log2 = timeScale.timeToCoordinate(endPoint.time);
+          if (log1 !== null && log2 !== null) {
+            const logicalRange = {
+              from: timeScale.coordinateToLogical(Math.min(log1, log2)),
+              to: timeScale.coordinateToLogical(Math.max(log1, log2))
+            };
+            timeScale.setVisibleLogicalRange(logicalRange);
+            showToast('success', 'Zoom Applied', 'Chart zoomed to selected area.');
+          }
+        } else {
+          // Push to drawings
+          drawings.push({
+            type: activeDrawingTool,
+            start: { time: drawingStartPoint.time, price: drawingStartPoint.price },
+            end: endPoint
+          });
+          
+          const toolNameMap = {
+            trendline: 'Trend Line',
+            channel: 'Parallel Channel',
+            gannfan: 'Gann Fan',
+            fib: 'Fibonacci Retracement',
+            brush: 'Highlight Brush',
+            ruler: 'Ruler'
+          };
+          showToast('success', 'Drawing Created', `${toolNameMap[activeDrawingTool] || activeDrawingTool} added to chart.`);
+        }
         
         // Reset states
+        const prevTool = activeDrawingTool;
         drawingStartPoint = null;
-        activeDrawingTool = null;
         
-        document.querySelectorAll('.drawing-btn').forEach(btn => btn.classList.remove('active'));
-        document.getElementById('draw-btn-crosshair').classList.add('active');
-        
-        const drawCanvasEl = document.getElementById('chart-drawing-canvas');
-        if (drawCanvasEl) drawCanvasEl.classList.remove('drawing-mode-active');
+        if (!isStayInDrawingMode) {
+          setDrawingTool(null, document.getElementById('draw-btn-crosshair'));
+        } else {
+          const toolNameMap = {
+            trendline: 'Trend Line',
+            channel: 'Parallel Channel',
+            gannfan: 'Gann Fan',
+            fib: 'Fibonacci Retracement',
+            brush: 'Highlight Brush',
+            ruler: 'Ruler',
+            zoom: 'Zoom Area'
+          };
+          showToast('info', 'Drawing Mode Active', `Click on the chart to start drawing another ${toolNameMap[prevTool] || prevTool}.`);
+        }
         
         drawCanvas();
       }
@@ -669,7 +807,28 @@ function initChart() {
     const activeSeries = getActiveSeries();
     if (!activeSeries) return;
     
-    const price = activeSeries.coordinateToPrice(param.point.y);
+    let price = activeSeries.coordinateToPrice(param.point.y);
+    if (!price) return;
+
+    if (isMagnetMode && param.time) {
+      const keySymbol = getMappedSymbol();
+      const history = marketEngine.getHistory(keySymbol, activeTimeframe);
+      const candle = history.find(c => c.time === param.time);
+      if (candle) {
+        const prices = [candle.open, candle.high, candle.low, candle.close];
+        let closestPrice = prices[0];
+        let minDiff = Math.abs(price - closestPrice);
+        for (let i = 1; i < prices.length; i++) {
+          const diff = Math.abs(price - prices[i]);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestPrice = prices[i];
+          }
+        }
+        price = closestPrice;
+      }
+    }
+    
     currentHoverPoint = {
       time: param.time,
       price: price,
@@ -1926,6 +2085,8 @@ function drawCanvas() {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  if (isDrawingsHidden) return; // Skip drawing
+
   const activeSeries = getActiveSeries();
   if (!activeSeries) return;
 
@@ -1935,65 +2096,191 @@ function drawCanvas() {
   drawings.forEach(drawing => {
     const x1 = timeScale.timeToCoordinate(drawing.start.time);
     const y1 = activeSeries.priceToCoordinate(drawing.start.price);
-    const x2 = timeScale.timeToCoordinate(drawing.end.time);
-    const y2 = activeSeries.priceToCoordinate(drawing.end.price);
+    
+    // One-click annotations might not have end coordinates
+    const x2 = drawing.end ? timeScale.timeToCoordinate(drawing.end.time) : null;
+    const y2 = drawing.end ? activeSeries.priceToCoordinate(drawing.end.price) : null;
 
-    if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
-      if (drawing.type === 'trendline') {
-        // Draw trend line
-        ctx.strokeStyle = '#ffb700'; // Bitstar Gold
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
+    const keySymbol = getMappedSymbol();
+    const coin = marketEngine.coins[keySymbol];
+    const dec = coin ? coin.decimalPlaces : 2;
 
-        // Control nodes
-        ctx.fillStyle = '#ffb700';
-        ctx.beginPath();
-        ctx.arc(x1, y1, 4, 0, 2 * Math.PI);
-        ctx.arc(x2, y2, 4, 0, 2 * Math.PI);
-        ctx.fill();
-      } else if (drawing.type === 'ruler') {
-        // Draw shaded measuring bounding box
-        ctx.fillStyle = 'rgba(16, 128, 255, 0.12)';
-        ctx.strokeStyle = 'rgba(16, 128, 255, 0.5)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.rect(x1, y1, x2 - x1, y2 - y1);
-        ctx.fill();
-        ctx.stroke();
-
-        // Draw measurement detail label
-        const priceDiff = drawing.end.price - drawing.start.price;
-        const pctChange = (priceDiff / drawing.start.price) * 100;
-        
-        // Compute bar count
-        const keySymbol = getMappedSymbol();
-        const history = marketEngine.getHistory(keySymbol, activeTimeframe);
-        const startIndex = history.findIndex(c => c.time === drawing.start.time);
-        const endIndex = history.findIndex(c => c.time === drawing.end.time);
-        const barsCount = (startIndex !== -1 && endIndex !== -1) ? Math.abs(endIndex - startIndex) + 1 : 0;
-        const sign = priceDiff >= 0 ? '+' : '';
-
-        const text = `${sign}${priceDiff.toFixed(2)} (${sign}${pctChange.toFixed(2)}%) | ${barsCount} Bars`;
-        
+    if (x1 !== null && y1 !== null) {
+      if (drawing.type === 'text') {
         ctx.fillStyle = '#ffffff';
-        ctx.font = '700 10px Inter, sans-serif';
+        ctx.font = '500 11px Inter, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        
+        // Measure text for background panel
+        const textWidth = ctx.measureText(drawing.text).width;
+        ctx.fillStyle = 'rgba(12, 13, 18, 0.85)';
+        ctx.fillRect(x1 - 4, y1 - 15, textWidth + 8, 18);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x1 - 4, y1 - 15, textWidth + 8, 18);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(drawing.text, x1, y1 - 2);
+      } else if (drawing.type === 'emoji') {
+        ctx.font = '18px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(text, (x1 + x2) / 2, Math.min(y1, y2) - 8);
+        ctx.textBaseline = 'middle';
+        ctx.fillText(drawing.emoji || '🚀', x1, y1);
+      } else if (x2 !== null && y2 !== null) {
+        if (drawing.type === 'trendline') {
+          // Draw trend line
+          ctx.strokeStyle = '#ffb700'; // Bitstar Gold
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+
+          // Control nodes
+          ctx.fillStyle = '#ffb700';
+          ctx.beginPath();
+          ctx.arc(x1, y1, 3.5, 0, 2 * Math.PI);
+          ctx.arc(x2, y2, 3.5, 0, 2 * Math.PI);
+          ctx.fill();
+        } else if (drawing.type === 'channel') {
+          // Parallel Channel
+          const offset = 20; // 20px Y-offset
+          ctx.strokeStyle = '#b388ff'; // Lavender/Purple
+          ctx.lineWidth = 1.5;
+          
+          // Boundary 1
+          ctx.beginPath();
+          ctx.moveTo(x1, y1 - offset);
+          ctx.lineTo(x2, y2 - offset);
+          ctx.stroke();
+          
+          // Boundary 2
+          ctx.beginPath();
+          ctx.moveTo(x1, y1 + offset);
+          ctx.lineTo(x2, y2 + offset);
+          ctx.stroke();
+          
+          // Fill inside channel
+          ctx.fillStyle = 'rgba(179, 136, 255, 0.05)';
+          ctx.beginPath();
+          ctx.moveTo(x1, y1 - offset);
+          ctx.lineTo(x2, y2 - offset);
+          ctx.lineTo(x2, y2 + offset);
+          ctx.lineTo(x1, y1 + offset);
+          ctx.closePath();
+          ctx.fill();
+          
+          // Dashed Center line
+          ctx.strokeStyle = 'rgba(179, 136, 255, 0.4)';
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        } else if (drawing.type === 'gannfan') {
+          // Gann Fan radiating rays
+          const dx = x2 - x1;
+          const dy = y2 - y1;
+          ctx.strokeStyle = '#bf5af2'; // Purple
+          ctx.lineWidth = 1;
+          
+          const ratios = [
+            { rx: 1, ry: 1 },
+            { rx: 1, ry: 0.5 },
+            { rx: 1, ry: 0.33 },
+            { rx: 1, ry: 0.25 },
+            { rx: 0.5, ry: 1 },
+            { rx: 0.33, ry: 1 },
+            { rx: 0.25, ry: 1 }
+          ];
+          
+          ratios.forEach(r => {
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x1 + dx * r.rx, y1 + dy * r.ry);
+            ctx.stroke();
+          });
+        } else if (drawing.type === 'fib') {
+          // Fibonacci Retracement
+          const levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0];
+          const colors = [
+            'rgba(255, 77, 77, 0.75)',    // 0%
+            'rgba(255, 159, 10, 0.75)',   // 23.6%
+            'rgba(255, 214, 10, 0.75)',   // 38.2%
+            'rgba(0, 192, 118, 0.75)',    // 50%
+            'rgba(10, 132, 255, 0.75)',   // 61.8%
+            'rgba(191, 90, 242, 0.75)',   // 78.6%
+            'rgba(255, 255, 255, 0.75)'   // 100%
+          ];
+          
+          levels.forEach((lvl, idx) => {
+            const price = drawing.start.price + (drawing.end.price - drawing.start.price) * lvl;
+            const y = activeSeries.priceToCoordinate(price);
+            if (y !== null) {
+              ctx.strokeStyle = colors[idx];
+              ctx.lineWidth = 1;
+              ctx.setLineDash([3, 3]);
+              ctx.beginPath();
+              ctx.moveTo(x1, y);
+              ctx.lineTo(x2, y);
+              ctx.stroke();
+              ctx.setLineDash([]);
+              
+              ctx.fillStyle = colors[idx];
+              ctx.font = '9px Inter, sans-serif';
+              ctx.fillText(`${(lvl * 100).toFixed(1)}% - ${price.toFixed(dec)}`, x1 + 4, y - 2);
+            }
+          });
+        } else if (drawing.type === 'brush') {
+          // Highlight Brush semi-transparent marker
+          ctx.strokeStyle = 'rgba(255, 214, 10, 0.22)'; // Yellow high-light color
+          ctx.lineWidth = 14;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        } else if (drawing.type === 'ruler') {
+          // Ruler measuring bounding box
+          ctx.fillStyle = 'rgba(16, 128, 255, 0.08)';
+          ctx.strokeStyle = 'rgba(16, 128, 255, 0.4)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.rect(x1, y1, x2 - x1, y2 - y1);
+          ctx.fill();
+          ctx.stroke();
+
+          // Calculations
+          const priceDiff = drawing.end.price - drawing.start.price;
+          const pctChange = (priceDiff / drawing.start.price) * 100;
+          
+          const history = marketEngine.getHistory(keySymbol, activeTimeframe);
+          const startIndex = history.findIndex(c => c.time === drawing.start.time);
+          const endIndex = history.findIndex(c => c.time === drawing.end.time);
+          const barsCount = (startIndex !== -1 && endIndex !== -1) ? Math.abs(endIndex - startIndex) + 1 : 0;
+          const sign = priceDiff >= 0 ? '+' : '';
+
+          const text = `${sign}${priceDiff.toFixed(dec)} (${sign}${pctChange.toFixed(2)}%) | ${barsCount} Bars`;
+          
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '700 10px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(text, (x1 + x2) / 2, Math.min(y1, y2) - 8);
+        }
       }
     }
   });
 
-  // Draw active drawing preview line
+  // Draw active drawing preview line/box
   if (drawingStartPoint && currentHoverPoint) {
     const x1 = timeScale.timeToCoordinate(drawingStartPoint.time);
     const y1 = activeSeries.priceToCoordinate(drawingStartPoint.price);
     const x2 = currentHoverPoint.x;
-    const y2 = currentHoverPoint.y;
+    const y2 = activeSeries.priceToCoordinate(currentHoverPoint.price); // Snap vertically to price coordinate
 
-    if (x1 !== null && y1 !== null) {
+    if (x1 !== null && y1 !== null && y2 !== null) {
       if (activeDrawingTool === 'trendline') {
         ctx.strokeStyle = 'rgba(255, 183, 0, 0.6)';
         ctx.lineWidth = 2;
@@ -2003,9 +2290,70 @@ function drawCanvas() {
         ctx.lineTo(x2, y2);
         ctx.stroke();
         ctx.setLineDash([]);
+      } else if (activeDrawingTool === 'channel') {
+        const offset = 20;
+        ctx.strokeStyle = 'rgba(179, 136, 255, 0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        
+        ctx.beginPath();
+        ctx.moveTo(x1, y1 - offset);
+        ctx.lineTo(x2, y2 - offset);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(x1, y1 + offset);
+        ctx.lineTo(x2, y2 + offset);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else if (activeDrawingTool === 'gannfan') {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        ctx.strokeStyle = 'rgba(191, 90, 242, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        
+        const ratios = [
+          { rx: 1, ry: 1 },
+          { rx: 1, ry: 0.5 },
+          { rx: 1, ry: 0.33 },
+          { rx: 1, ry: 0.25 },
+          { rx: 0.5, ry: 1 },
+          { rx: 0.33, ry: 1 },
+          { rx: 0.25, ry: 1 }
+        ];
+        
+        ratios.forEach(r => {
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x1 + dx * r.rx, y1 + dy * r.ry);
+          ctx.stroke();
+        });
+        ctx.setLineDash([]);
+      } else if (activeDrawingTool === 'fib') {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(x1, y2);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y1);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else if (activeDrawingTool === 'brush') {
+        ctx.strokeStyle = 'rgba(255, 214, 10, 0.15)';
+        ctx.lineWidth = 14;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
       } else if (activeDrawingTool === 'ruler') {
-        ctx.fillStyle = 'rgba(16, 128, 255, 0.08)';
-        ctx.strokeStyle = 'rgba(16, 128, 255, 0.35)';
+        ctx.fillStyle = 'rgba(16, 128, 255, 0.05)';
+        ctx.strokeStyle = 'rgba(16, 128, 255, 0.3)';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.rect(x1, y1, x2 - x1, y2 - y1);
@@ -2073,25 +2421,52 @@ function initChartUIPanels() {
   // Draw Tools Sidebar Click Handlers
   const crosshairBtn = document.getElementById('draw-btn-crosshair');
   const trendlineBtn = document.getElementById('draw-btn-trendline');
+  const channelBtn = document.getElementById('draw-btn-sliders'); // parallel channel
+  const gannfanBtn = document.getElementById('draw-btn-graph'); // gann fan
+  const fibBtn = document.getElementById('draw-btn-fib'); // fib retracement
+  const brushBtn = document.getElementById('draw-btn-brush'); // brush
+  const textBtn = document.getElementById('draw-btn-text'); // text
+  const smileyBtn = document.getElementById('draw-btn-smiley'); // emoji sticker
   const rulerBtn = document.getElementById('draw-btn-ruler');
+  const zoomBtn = document.getElementById('draw-btn-zoom');
   const trashBtn = document.getElementById('draw-btn-trash');
+  
+  // Toggles
+  const magnetBtn = document.getElementById('draw-btn-magnet');
+  const staydrawBtn = document.getElementById('draw-btn-staydraw');
+  const lockallBtn = document.getElementById('draw-btn-lockall');
+  const hideallBtn = document.getElementById('draw-btn-hideall');
+  
   const drawCanvasEl = document.getElementById('chart-drawing-canvas');
 
   const setDrawingTool = (tool, activeBtn) => {
+    if (isDrawingsLocked && tool) {
+      showToast('error', 'Drawings Locked', 'All drawings are currently locked.');
+      return;
+    }
+    
     activeDrawingTool = tool;
     drawingStartPoint = null;
     
     document.querySelectorAll('.drawing-btn').forEach(btn => btn.classList.remove('active'));
     if (activeBtn) activeBtn.classList.add('active');
     
+    const chartContainer = document.getElementById('chart-container');
+    if (chartContainer) {
+      if (tool) {
+        chartContainer.style.cursor = 'crosshair';
+      } else {
+        chartContainer.style.cursor = 'default';
+      }
+    }
+    
     if (drawCanvasEl) {
       if (tool) {
         drawCanvasEl.classList.add('drawing-mode-active');
-        drawCanvasEl.style.pointerEvents = 'auto';
       } else {
         drawCanvasEl.classList.remove('drawing-mode-active');
-        drawCanvasEl.style.pointerEvents = 'none';
       }
+      drawCanvasEl.style.pointerEvents = 'none'; // Always let clicks pass through to chart
     }
   };
 
@@ -2108,6 +2483,48 @@ function initChartUIPanels() {
       showToast('info', 'Trend Line Active', 'Click on the chart to select the start coordinate.');
     });
   }
+  
+  if (channelBtn) {
+    channelBtn.addEventListener('click', () => {
+      setDrawingTool('channel', channelBtn);
+      showToast('info', 'Parallel Channel Active', 'Click on the chart to select the start coordinate.');
+    });
+  }
+  
+  if (gannfanBtn) {
+    gannfanBtn.addEventListener('click', () => {
+      setDrawingTool('gannfan', gannfanBtn);
+      showToast('info', 'Gann Fan Active', 'Click on the chart to select the start coordinate.');
+    });
+  }
+  
+  if (fibBtn) {
+    fibBtn.addEventListener('click', () => {
+      setDrawingTool('fib', fibBtn);
+      showToast('info', 'Fib Retracement Active', 'Click on the chart to select the start coordinate.');
+    });
+  }
+  
+  if (brushBtn) {
+    brushBtn.addEventListener('click', () => {
+      setDrawingTool('brush', brushBtn);
+      showToast('info', 'Highlight Brush Active', 'Click on the chart to select the start coordinate.');
+    });
+  }
+  
+  if (textBtn) {
+    textBtn.addEventListener('click', () => {
+      setDrawingTool('text', textBtn);
+      showToast('info', 'Text Annotation Active', 'Click on the chart to choose text placement coordinate.');
+    });
+  }
+  
+  if (smileyBtn) {
+    smileyBtn.addEventListener('click', () => {
+      setDrawingTool('emoji', smileyBtn);
+      showToast('info', 'Emoji Sticker Active', 'Click on the chart to choose sticker placement coordinate.');
+    });
+  }
 
   if (rulerBtn) {
     rulerBtn.addEventListener('click', () => {
@@ -2115,14 +2532,58 @@ function initChartUIPanels() {
       showToast('info', 'Ruler Measure Active', 'Click on the chart to select the start measurement coordinate.');
     });
   }
+  
+  if (zoomBtn) {
+    zoomBtn.addEventListener('click', () => {
+      setDrawingTool('zoom', zoomBtn);
+      showToast('info', 'Zoom Active', 'Click on the chart to choose start coordinate of zoom area.');
+    });
+  }
 
   if (trashBtn) {
     trashBtn.addEventListener('click', () => {
+      if (isDrawingsLocked) {
+        showToast('error', 'Drawings Locked', 'All drawings are currently locked.');
+        return;
+      }
       drawings = [];
       drawingStartPoint = null;
       setDrawingTool(null, crosshairBtn);
       drawCanvas();
       showToast('info', 'Drawings Cleared', 'All lines and rulers successfully removed.');
+    });
+  }
+  
+  if (magnetBtn) {
+    magnetBtn.addEventListener('click', () => {
+      isMagnetMode = !isMagnetMode;
+      magnetBtn.classList.toggle('active', isMagnetMode);
+      showToast('info', 'Magnet Mode', `Magnet snapping is now ${isMagnetMode ? 'ON' : 'OFF'}.`);
+    });
+  }
+  
+  if (staydrawBtn) {
+    staydrawBtn.addEventListener('click', () => {
+      isStayInDrawingMode = !isStayInDrawingMode;
+      staydrawBtn.classList.toggle('active', isStayInDrawingMode);
+      showToast('info', 'Stay-in-Drawing Mode', `Stay-in-Drawing mode is now ${isStayInDrawingMode ? 'ON' : 'OFF'}.`);
+    });
+  }
+  
+  if (lockallBtn) {
+    lockallBtn.addEventListener('click', () => {
+      isDrawingsLocked = !isDrawingsLocked;
+      lockallBtn.classList.toggle('active', isDrawingsLocked);
+      showToast('info', 'Lock Drawings', `All drawings are now ${isDrawingsLocked ? 'LOCKED' : 'UNLOCKED'}.`);
+    });
+  }
+  
+  if (hideallBtn) {
+    hideallBtn.addEventListener('click', () => {
+      isDrawingsHidden = !isDrawingsHidden;
+      hideallBtn.classList.toggle('active', isDrawingsHidden);
+      drawCanvas();
+      showToast('info', 'Hide Drawings', `Drawings are now ${isDrawingsHidden ? 'HIDDEN' : 'VISIBLE'}.`);
     });
   }
 

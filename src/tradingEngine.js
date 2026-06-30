@@ -63,7 +63,7 @@ class TradingEngine {
   }
 
   generateAccountId() {
-    return 'Demo #' + Math.floor(100000 + Math.random() * 900000);
+    return 'Real #' + Math.floor(100000 + Math.random() * 900000);
   }
 
   resetAccount() {

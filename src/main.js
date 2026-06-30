@@ -44,6 +44,7 @@ let lastSeenHistoryVersion = {};
 let activeAlerts = [];
 let triggeredAlerts = [];
 let isPickingAlertPrice = false;
+let setDrawingTool = null; // Global setter initialized in initChartUIPanels
 
 // Initialize when DOM loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -56,6 +57,7 @@ function initApp() {
 
   // Initialize UI Bindings
   initAssetTabs();
+  initPortfolioTabs();
   initTimeframes();
   initTradingForm();
   initChart();
@@ -280,12 +282,12 @@ function initApp() {
   marketEngine.subscribe(handleMarketTick);
   tradingEngine.subscribe(handleTradingTick);
 
-  // Reset demo account button
+  // Reset real account button
   const resetBtn = document.getElementById('reset-account-btn');
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
       tradingEngine.resetAccount();
-      showToast('success', 'Account Reset', 'Demo account balance reset to $10,000.00 USD.');
+      showToast('success', 'Account Reset', 'Real account balance reset to $10,000.00 USD.');
     });
   }
 
@@ -397,6 +399,65 @@ function initAssetTabs() {
         renderInstrumentsList();
       }
     });
+  }
+}
+
+function initPortfolioTabs() {
+  const tabs = document.querySelectorAll('.portfolio-tab-btn');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      const targetTab = e.currentTarget.getAttribute('data-tab');
+      
+      // Update tab buttons active state
+      tabs.forEach(t => t.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      
+      // Update tab contents active state
+      const contentItems = document.querySelectorAll('.portfolio-tab-content-item');
+      contentItems.forEach(item => {
+        const itemTabName = item.id.replace('portfolio-tab-', '');
+        if (itemTabName === targetTab) {
+          item.classList.add('active');
+          item.style.display = 'block';
+        } else {
+          item.classList.remove('active');
+          item.style.display = 'none';
+        }
+      });
+      
+      // Auto expand portfolio panel if it was collapsed when clicking a tab
+      const portfolioPanel = document.querySelector('.bottom-portfolio-panel');
+      if (portfolioPanel && portfolioPanel.classList.contains('collapsed')) {
+        portfolioPanel.classList.remove('collapsed');
+        resizeChartArea();
+      }
+    });
+  });
+
+  // Collapse/Expand Caret Toggle
+  const collapseBtn = document.getElementById('portfolio-collapse-btn');
+  const portfolioPanel = document.querySelector('.bottom-portfolio-panel');
+  if (collapseBtn && portfolioPanel) {
+    collapseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      portfolioPanel.classList.toggle('collapsed');
+      resizeChartArea();
+    });
+  }
+}
+
+function resizeChartArea() {
+  if (chart) {
+    const container = document.getElementById('chart-container');
+    if (container) {
+      chart.resize(container.clientWidth, container.clientHeight);
+      const canvas = document.getElementById('chart-drawing-canvas');
+      if (canvas) {
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+        drawCanvas();
+      }
+    }
   }
 }
 
@@ -744,7 +805,6 @@ function initChart() {
   container.addEventListener('dblclick', (e) => {
     if (isPickingTp || isPickingSl || isPickingAlertPrice || activeDrawingTool) return;
     const rect = container.getBoundingClientRect();
-    const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
     const activeSeries = getActiveSeries();
@@ -757,14 +817,19 @@ function initChart() {
     const dec = coin ? coin.decimalPlaces : 2;
     const formattedPrice = parseFloat(price.toFixed(dec));
 
-    showChartContextMenu(x, y, formattedPrice);
+    const chartWrapper = document.querySelector('.chart-wrapper');
+    if (!chartWrapper) return;
+    const wrapperRect = chartWrapper.getBoundingClientRect();
+    const x = e.clientX - wrapperRect.left;
+    const contextY = e.clientY - wrapperRect.top;
+
+    showChartContextMenu(x, contextY, formattedPrice);
   });
 
   container.addEventListener('contextmenu', (e) => {
     if (isPickingTp || isPickingSl || isPickingAlertPrice || activeDrawingTool) return;
     e.preventDefault();
     const rect = container.getBoundingClientRect();
-    const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
     const activeSeries = getActiveSeries();
@@ -777,7 +842,13 @@ function initChart() {
     const dec = coin ? coin.decimalPlaces : 2;
     const formattedPrice = parseFloat(price.toFixed(dec));
 
-    showChartContextMenu(x, y, formattedPrice);
+    const chartWrapper = document.querySelector('.chart-wrapper');
+    if (!chartWrapper) return;
+    const wrapperRect = chartWrapper.getBoundingClientRect();
+    const x = e.clientX - wrapperRect.left;
+    const contextY = e.clientY - wrapperRect.top;
+
+    showChartContextMenu(x, contextY, formattedPrice);
   });
 
   // Subscribe to clicks on chart for picking TP/SL price and drawing tools
@@ -1181,12 +1252,28 @@ function startLiveClock() {
 function startLatencySimulator() {
   const latencyEl = document.querySelector('#latency-indicator span');
   if (!latencyEl) return;
-  // Set initial value
-  latencyEl.textContent = '35 ms';
-  setInterval(() => {
-    const lat = Math.floor(Math.random() * 20) + 30; // 30-50ms
-    latencyEl.textContent = `${lat} ms`;
-  }, 3000);
+  
+  async function updateRealLatency() {
+    try {
+      const start = performance.now();
+      const res = await fetch('/api-hyperliquid/info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'meta' })
+      });
+      if (res.ok) {
+        const lat = Math.round(performance.now() - start);
+        latencyEl.textContent = `${lat} ms`;
+      } else {
+        latencyEl.textContent = '-- ms';
+      }
+    } catch (err) {
+      latencyEl.textContent = 'Offline';
+    }
+  }
+
+  updateRealLatency();
+  setInterval(updateRealLatency, 5000);
 }
 
 
@@ -2294,7 +2381,7 @@ function renderPendingOrdersTable(orders, lotMultiplier) {
   if (orders.length === 0) {
     const tr = document.createElement('tr');
     const td = document.createElement('td');
-    td.setAttribute('colspan', '6');
+    td.setAttribute('colspan', '11');
     td.className = 'empty-table';
     td.textContent = 'No pending orders.';
     tr.appendChild(td);
@@ -2319,20 +2406,40 @@ function renderPendingOrdersTable(orders, lotMultiplier) {
     const keySymbol = order.symbol;
     const coin = marketEngine.coins[keySymbol];
     const dec = coin ? coin.decimalPlaces : 2;
-
-    const tdTarget = document.createElement('td');
-    tdTarget.className = 'font-mono';
-    tdTarget.textContent = `${order.targetPrice.toFixed(dec)}`;
+    const currentPrice = coin ? coin.currentPrice : 0;
 
     const tdVolume = document.createElement('td');
     tdVolume.className = 'font-mono';
     const lots = order.volume / lotMultiplier;
     tdVolume.textContent = lots.toFixed(2);
 
-    const estMargin = (order.volume * order.targetPrice) / order.leverage;
-    const tdMargin = document.createElement('td');
-    tdMargin.className = 'font-mono';
-    tdMargin.textContent = `$${estMargin.toFixed(2)}`;
+    const tdOpeningPrice = document.createElement('td');
+    tdOpeningPrice.className = 'font-mono';
+    tdOpeningPrice.textContent = `${order.targetPrice.toFixed(dec)}`;
+
+    const tdCurrentPrice = document.createElement('td');
+    tdCurrentPrice.className = 'font-mono';
+    tdCurrentPrice.textContent = `${currentPrice.toFixed(dec)}`;
+
+    const tdTp = document.createElement('td');
+    tdTp.className = 'font-mono';
+    tdTp.textContent = order.tp ? order.tp.toFixed(dec) : '-';
+
+    const tdSl = document.createElement('td');
+    tdSl.className = 'font-mono';
+    tdSl.textContent = order.sl ? order.sl.toFixed(dec) : '-';
+
+    const tdOrder = document.createElement('td');
+    tdOrder.className = 'font-mono';
+    tdOrder.textContent = order.id ? `#${order.id.replace('ord_', '')}` : '-';
+
+    const tdOpenTime = document.createElement('td');
+    tdOpenTime.className = 'font-mono';
+    tdOpenTime.textContent = formatBitstarDateTime(order.timestamp);
+
+    const tdCloses = document.createElement('td');
+    tdCloses.className = 'font-mono';
+    tdCloses.textContent = getMarketCloseTimeStr(order.symbol);
 
     const tdAction = document.createElement('td');
     tdAction.className = 'align-right';
@@ -2346,9 +2453,14 @@ function renderPendingOrdersTable(orders, lotMultiplier) {
 
     tr.appendChild(tdAsset);
     tr.appendChild(tdType);
-    tr.appendChild(tdTarget);
     tr.appendChild(tdVolume);
-    tr.appendChild(tdMargin);
+    tr.appendChild(tdOpeningPrice);
+    tr.appendChild(tdCurrentPrice);
+    tr.appendChild(tdTp);
+    tr.appendChild(tdSl);
+    tr.appendChild(tdOrder);
+    tr.appendChild(tdOpenTime);
+    tr.appendChild(tdCloses);
     tr.appendChild(tdAction);
 
     return tr;
@@ -2687,8 +2799,7 @@ function showChartContextMenu(x, y, price) {
         symbol: keySymbol,
         condition: condition,
         price: price,
-        triggered: false,
-        timestamp: Date.now()
+        createdAt: Date.now()
       };
       activeAlerts.push(alertItem);
       saveAlerts();
@@ -3230,7 +3341,7 @@ function initChartUIPanels() {
   
   const drawCanvasEl = document.getElementById('chart-drawing-canvas');
 
-  const setDrawingTool = (tool, activeBtn) => {
+  setDrawingTool = (tool, activeBtn) => {
     if (isDrawingsLocked && tool) {
       showToast('error', 'Drawings Locked', 'All drawings are currently locked.');
       return;
@@ -3554,8 +3665,8 @@ function createEmptyRow(colSpan, msg) {
 }
 
 // Local mock standard session helper
-const currentUser = { username: 'Demo User', role: 'USER', balance: 10000.00 };
-const activeBalanceSource = 'demo';
+const currentUser = { username: 'Real User', role: 'USER', balance: 10000.00 };
+const activeBalanceSource = 'real';
 function getCsrfToken() { return ''; }
 
 // Instruments sidebar panel implementation

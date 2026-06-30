@@ -80,7 +80,7 @@
           <div style="display: flex; flex-direction: column; align-items: flex-end;">
             <div style="display: flex; align-items: center;">
               <span
-                style="font-size: 9px; background-color: rgba(0, 192, 118, 0.12); color: #00c076; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; font-family: 'Inter', sans-serif;">Demo</span>
+                style="font-size: 9px; background-color: rgba(0, 192, 118, 0.12); color: #00c076; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; font-family: 'Inter', sans-serif;">Real</span>
               <span
                 style="font-size: 10px; color: var(--text-secondary); font-weight: 600; margin-left: 6px; font-family: 'Inter', sans-serif;">Standard</span>
             </div>
@@ -540,6 +540,113 @@
               </div>
             </div>
 
+              <!-- Portfolio bottom panel -->
+              <div class="bottom-portfolio-panel">
+                <div class="portfolio-tabs-header">
+                  <button class="portfolio-tab-btn active" data-tab="open">
+                    Open <span id="badge-positions" class="portfolio-badge" style="display: none;">0</span>
+                  </button>
+                  <button class="portfolio-tab-btn" data-tab="pending">
+                    Pending <span id="badge-pending" class="portfolio-badge" style="display: none;">0</span>
+                  </button>
+                  <button class="portfolio-tab-btn" data-tab="closed">
+                    Closed
+                  </button>
+                  <button id="portfolio-collapse-btn" class="portfolio-collapse-btn" title="Collapse/Expand Panel">
+                    <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M1 5l4-4 4 4" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                  </button>
+                </div>
+                <div class="portfolio-tab-contents">
+                  <!-- Open positions table container -->
+                  <div class="portfolio-tab-content-item active" id="portfolio-tab-open">
+                    <div class="table-container">
+                      <table class="history-table">
+                        <thead>
+                          <tr>
+                            <th>Symbol</th>
+                            <th>Type</th>
+                            <th>Volume, lot</th>
+                            <th>Open price</th>
+                            <th>Current price</th>
+                            <th>T/P</th>
+                            <th>S/L</th>
+                            <th>Position</th>
+                            <th>Open time</th>
+                            <th>Swap, USD</th>
+                            <th>Market closes in</th>
+                            <th>P/L, USD</th>
+                            <th class="align-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody id="positions-table-body">
+                          <tr>
+                            <td colspan="13" class="empty-table">No open positions. Use the right panel to execute a trade.</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  
+                  <!-- Pending orders table container -->
+                  <div class="portfolio-tab-content-item" id="portfolio-tab-pending" style="display: none;">
+                    <div class="table-container">
+                      <table class="history-table">
+                        <thead>
+                          <tr>
+                            <th>Symbol</th>
+                            <th>Type</th>
+                            <th>Volume, lot</th>
+                            <th>Opening price</th>
+                            <th>Current price</th>
+                            <th>T/P</th>
+                            <th>S/L</th>
+                            <th>Order</th>
+                            <th>Open time</th>
+                            <th>Market closes in</th>
+                            <th class="align-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody id="pending-table-body">
+                          <tr>
+                            <td colspan="11" class="empty-table">No pending orders.</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  
+                  <!-- Closed trades table container -->
+                  <div class="portfolio-tab-content-item" id="portfolio-tab-closed" style="display: none;">
+                    <div class="table-container">
+                      <table class="history-table">
+                        <thead>
+                          <tr>
+                            <th>Symbol</th>
+                            <th>Type</th>
+                            <th>Volume, lot</th>
+                            <th>Open price</th>
+                            <th>Close price</th>
+                            <th>T/P</th>
+                            <th>S/L</th>
+                            <th>Position</th>
+                            <th>Open time</th>
+                            <th>Close time</th>
+                            <th>Swap, USD</th>
+                            <th>Reason</th>
+                            <th class="align-right">P/L, USD</th>
+                          </tr>
+                        </thead>
+                        <tbody id="history-table-body">
+                          <tr>
+                            <td colspan="13" class="empty-table">No closed trades in this session.</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+              </div>
+            </div>
           </section>
 
           <!-- Right Panel: Zuperior Trading Terminal -->
@@ -669,7 +776,7 @@
                     </span>
                   </div>
                   <div class="input-with-controls" id="tp-input-container">
-                    <input type="number" id="tp-price-input" placeholder="Not se" min="0.00001" step="any">
+                    <input type="number" id="tp-price-input" placeholder="Not set" min="0.00001" step="any">
                     <span class="unit-overlay-text">Price ▾</span>
                     <button class="ctrl-btn minus" id="tp-minus">-</button>
                     <button class="ctrl-btn plus" id="tp-plus">+</button>
@@ -695,7 +802,7 @@
                     </span>
                   </div>
                   <div class="input-with-controls" id="sl-input-container">
-                    <input type="number" id="sl-price-input" placeholder="Not se" min="0.00001" step="any">
+                    <input type="number" id="sl-price-input" placeholder="Not set" min="0.00001" step="any">
                     <span class="unit-overlay-text">Price ▾</span>
                     <button class="ctrl-btn minus" id="sl-minus">-</button>
                     <button class="ctrl-btn plus" id="sl-plus">+</button>

@@ -3,6 +3,98 @@ import { createChart, CandlestickSeries, HistogramSeries, AreaSeries, BarSeries,
 import { marketEngine } from './mockMarket';
 import { tradingEngine } from './tradingEngine';
 
+// Sound Effects Synthesizer using Web Audio API
+class SoundEffects {
+  static init() {
+    try {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+      console.warn("Web Audio API not supported in this browser:", e);
+    }
+  }
+  
+  static playSuccess() {
+    try {
+      if (!this.ctx) this.init();
+      if (!this.ctx) return;
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, now); // C5
+      osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+      osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
+      
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      
+      osc.start(now);
+      osc.stop(now + 0.35);
+    } catch (e) {
+      console.warn("Sound play success failed:", e);
+    }
+  }
+  
+  static playAlert() {
+    try {
+      if (!this.ctx) this.init();
+      if (!this.ctx) return;
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      
+      const now = this.ctx.currentTime;
+      for (let i = 0; i < 3; i++) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(880, now + i * 0.22);
+        gain.gain.setValueAtTime(0.06, now + i * 0.22);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.22 + 0.18);
+        osc.start(now + i * 0.22);
+        osc.stop(now + i * 0.22 + 0.18);
+      }
+    } catch (e) {
+      console.warn("Sound play alert failed:", e);
+    }
+  }
+  
+  static playCancel() {
+    try {
+      if (!this.ctx) this.init();
+      if (!this.ctx) return;
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(329.63, now); // E4
+      osc.frequency.exponentialRampToValueAtTime(164.81, now + 0.2); // E3
+      
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      
+      osc.start(now);
+      osc.stop(now + 0.2);
+    } catch (e) {
+      console.warn("Sound play cancel failed:", e);
+    }
+  }
+}
+
+// Global state tracking for sounds
+let lastPositionsLength = null;
+let lastPendingOrdersLength = null;
+
 // Global state
 let activeSymbol = 'EURUSD';
 let activeTimeframe = 5; // 5m default like in screenshot
@@ -63,6 +155,10 @@ function initApp() {
   initChart();
   startLiveClock();
   startLatencySimulator();
+  
+  // New features initializers
+  initKeyboardShortcuts();
+  initHistoryExporter();
   
   // Initialize drawing toolbar collapsible drawer
   const collapseBtn = document.getElementById('drawing-toolbar-collapse-btn');
@@ -1882,25 +1978,7 @@ function saveAlerts() {
 }
 
 function playAlertSound() {
-  try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
-    
-    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 0.6);
-  } catch (e) {
-    console.error("Audio Context not allowed or failed:", e);
-  }
+  SoundEffects.playAlert();
 }
 
 function renderAlertsList() {
@@ -2186,6 +2264,26 @@ function handleMarketTick(coins) {
 }
 
 function handleTradingTick(engine) {
+  // Sound checks based on length changes
+  if (lastPositionsLength !== null) {
+    if (engine.positions.length > lastPositionsLength) {
+      SoundEffects.playSuccess();
+    } else if (engine.positions.length < lastPositionsLength) {
+      SoundEffects.playCancel();
+    }
+  }
+  if (lastPendingOrdersLength !== null) {
+    if (engine.pendingOrders.length > lastPendingOrdersLength) {
+      SoundEffects.playSuccess();
+    } else if (engine.pendingOrders.length < lastPendingOrdersLength) {
+      if (engine.positions.length <= (lastPositionsLength || 0)) {
+        SoundEffects.playCancel();
+      }
+    }
+  }
+  lastPositionsLength = engine.positions.length;
+  lastPendingOrdersLength = engine.pendingOrders.length;
+
   const lotMultiplier = getLotMultiplier();
   
   // Format standard prices helper without commas
@@ -3895,5 +3993,142 @@ function updateInstrumentsPrices(coins) {
       changeEl.className = `instrument-change font-mono ${isUp ? 'up' : 'down'}`;
     }
   });
+}
+
+// Initialize Keyboard Hotkeys & Modal Controller
+function initKeyboardShortcuts() {
+  const hotkeysBtn = document.getElementById('hotkeys-help-btn');
+  const modal = document.getElementById('hotkeys-modal');
+  const closeBtn = document.getElementById('hotkeys-modal-close');
+
+  if (hotkeysBtn && modal) {
+    hotkeysBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      modal.classList.toggle('hidden');
+    });
+  }
+
+  if (closeBtn && modal) {
+    closeBtn.addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+  }
+
+  // Close hotkeys modal if clicked outside
+  document.addEventListener('click', (e) => {
+    if (modal && !modal.classList.contains('hidden') && hotkeysBtn && !hotkeysBtn.contains(e.target) && !modal.contains(e.target)) {
+      modal.classList.add('hidden');
+    }
+  });
+
+  // Global keydown listeners for shortcuts
+  window.addEventListener('keydown', (e) => {
+    // Avoid triggering shortcuts if typing inside form inputs/select elements
+    const tag = document.activeElement.tagName.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+    // SPACE: Switch active symbol asset tab
+    if (e.code === 'Space') {
+      e.preventDefault();
+      const activeTab = document.querySelector('.asset-tab.active');
+      if (activeTab) {
+        const tabs = Array.from(document.querySelectorAll('.asset-tab'));
+        if (tabs.length > 1) {
+          const index = tabs.indexOf(activeTab);
+          const nextIndex = (index + 1) % tabs.length;
+          tabs[nextIndex].click();
+          showToast('info', 'Tab Switched', `Active asset tab changed to ${tabs[nextIndex].textContent.trim()}`);
+        }
+      }
+    }
+
+    // ALT + B: Activate BUY mode / confirm order
+    if (e.altKey && e.code === 'KeyB') {
+      e.preventDefault();
+      const buyTrigger = document.getElementById('action-buy-trigger');
+      if (buyTrigger) buyTrigger.click();
+    }
+
+    // ALT + S: Activate SELL mode / confirm order
+    if (e.altKey && e.code === 'KeyS') {
+      e.preventDefault();
+      const sellTrigger = document.getElementById('action-sell-trigger');
+      if (sellTrigger) sellTrigger.click();
+    }
+
+    // ALT + A: Trigger Price Alert picker
+    if (e.altKey && e.code === 'KeyA') {
+      e.preventDefault();
+      const alertPicker = document.getElementById('alert-chart-picker-btn');
+      if (alertPicker) alertPicker.click();
+    }
+
+    // ESCAPE: Dismiss TP/SL/Alert chart picking state or cancel drawing tools
+    if (e.code === 'Escape') {
+      isPickingTp = false;
+      isPickingSl = false;
+      isPickingAlertPrice = false;
+      
+      const tpPicker = document.getElementById('tp-chart-picker');
+      const slPicker = document.getElementById('sl-chart-picker');
+      const alertPicker = document.getElementById('alert-chart-picker-btn');
+      
+      if (tpPicker) tpPicker.classList.remove('picking');
+      if (slPicker) slPicker.classList.remove('picking');
+      if (alertPicker) alertPicker.classList.remove('alert-picker-active');
+      document.getElementById('chart-container').style.cursor = 'default';
+
+      if (activeDrawingTool) {
+        setDrawingTool(null);
+        showToast('info', 'Drawing Cancelled', 'Active drawing tool cancelled.');
+      }
+    }
+  });
+}
+
+// Initialize Closed History CSV/Excel Exporter
+function initHistoryExporter() {
+  const exportBtn = document.getElementById('export-history-btn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      const history = tradingEngine.history;
+      if (!history || history.length === 0) {
+        showToast('info', 'No History', 'There are no closed trades to export.');
+        return;
+      }
+
+      let csvContent = 'Symbol,Type,Volume (Lot),Open Price,Close Price,Take Profit,Stop Loss,Open Time,Close Time,Swap (USD),Reason,Profit/Loss (USD)\r\n';
+      const lotMultiplier = getLotMultiplier();
+
+      history.forEach(trade => {
+        const symbol = trade.symbol.replace('/', '');
+        const type = trade.type;
+        const volume = (trade.volume / lotMultiplier).toFixed(2);
+        const openPrice = trade.openPrice.toFixed(5);
+        const closePrice = trade.closePrice.toFixed(5);
+        const tp = trade.tp ? trade.tp.toFixed(5) : '-';
+        const sl = trade.sl ? trade.sl.toFixed(5) : '-';
+        const openTime = formatBitstarDateTime(trade.openTime);
+        const closeTime = formatBitstarDateTime(trade.closeTime);
+        const swap = trade.swap ? trade.swap.toFixed(2) : '0.00';
+        const reason = trade.reason || 'Closed';
+        const pnl = trade.pnl.toFixed(2);
+
+        const row = `"${symbol}","${type}",${volume},${openPrice},${closePrice},"${tp}","${sl}","${openTime}","${closeTime}",${swap},"${reason}",${pnl}`;
+        csvContent += row + '\r\n';
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `bitstar_trading_history_${Date.now()}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('success', 'History Exported', 'CSV report downloaded successfully.');
+    });
+  }
 }
 

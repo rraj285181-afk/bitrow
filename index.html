@@ -76,6 +76,22 @@
       </div>
 
       <div class="header-right" style="display: flex; align-items: center; gap: 16px;">
+        <!-- Hotkeys Help Button -->
+        <button id="hotkeys-help-btn" class="header-action-btn" title="Keyboard Shortcuts"
+          style="background: none; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; padding: 6px; border-radius: 4px; transition: all 0.15s ease; outline: none;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+            <line x1="6" y1="8" x2="6.01" y2="8"></line>
+            <line x1="10" y1="8" x2="10.01" y2="8"></line>
+            <line x1="14" y1="8" x2="14.01" y2="8"></line>
+            <line x1="18" y1="8" x2="18.01" y2="8"></line>
+            <line x1="6" y1="12" x2="6.01" y2="12"></line>
+            <line x1="10" y1="12" x2="10.01" y2="12"></line>
+            <line x1="14" y1="12" x2="14.01" y2="12"></line>
+            <line x1="18" y1="12" x2="18.01" y2="12"></line>
+            <line x1="7" y1="16" x2="17" y2="16"></line>
+          </svg>
+        </button>
         <div style="display: flex; align-items: center; gap: 10px;">
           <div style="display: flex; flex-direction: column; align-items: flex-end;">
             <div style="display: flex; align-items: center;">
@@ -629,6 +645,16 @@
                   
                   <!-- Closed trades table container -->
                   <div class="portfolio-tab-content-item" id="portfolio-tab-closed" style="display: none;">
+                    <div class="portfolio-action-row" style="display: flex; justify-content: flex-end; padding: 6px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); background-color: var(--bg-secondary);">
+                      <button id="export-history-btn" style="background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: 600; transition: all 0.15s ease; display: flex; align-items: center; gap: 4px; outline: none;">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                          <polyline points="7 10 12 15 17 10"></polyline>
+                          <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Export History
+                      </button>
+                    </div>
                     <div class="table-container">
                       <table class="history-table">
                         <thead>
@@ -911,6 +937,38 @@
 
 
 
+
+  <!-- Keyboard Shortcuts Modal -->
+  <div id="hotkeys-modal" class="broker-modal hidden" style="z-index: 9999;">
+    <div class="broker-modal-content" style="max-width: 360px; padding: 20px; border-radius: var(--border-radius-md); border: 1px solid var(--border-color); background-color: var(--bg-secondary);">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
+        <h3 style="color: #fff; font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 700; margin: 0;">Keyboard Shortcuts</h3>
+        <span class="modal-close" id="hotkeys-modal-close" style="cursor: pointer; color: var(--text-secondary); font-size: 16px;">✕</span>
+      </div>
+      <div class="modal-body" style="font-family: var(--font-sans); display: flex; flex-direction: column; gap: 12px; font-size: 11.5px; color: var(--text-secondary);">
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
+          <span>Switch Asset Tab</span>
+          <kbd style="background: var(--bg-tertiary); padding: 2px 6px; border-radius: 3px; font-family: var(--font-mono); color: #fff; font-size: 10px; border: 1px solid rgba(255,255,255,0.1);">Space</kbd>
+        </div>
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
+          <span>Select Buy Order</span>
+          <kbd style="background: var(--bg-tertiary); padding: 2px 6px; border-radius: 3px; font-family: var(--font-mono); color: #fff; font-size: 10px; border: 1px solid rgba(255,255,255,0.1);">Alt + B</kbd>
+        </div>
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
+          <span>Select Sell Order</span>
+          <kbd style="background: var(--bg-tertiary); padding: 2px 6px; border-radius: 3px; font-family: var(--font-mono); color: #fff; font-size: 10px; border: 1px solid rgba(255,255,255,0.1);">Alt + S</kbd>
+        </div>
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
+          <span>Toggle Price Alert Picker</span>
+          <kbd style="background: var(--bg-tertiary); padding: 2px 6px; border-radius: 3px; font-family: var(--font-mono); color: #fff; font-size: 10px; border: 1px solid rgba(255,255,255,0.1);">Alt + A</kbd>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding-bottom: 4px;">
+          <span>Cancel Draw / Pickers</span>
+          <kbd style="background: var(--bg-tertiary); padding: 2px 6px; border-radius: 3px; font-family: var(--font-mono); color: #fff; font-size: 10px; border: 1px solid rgba(255,255,255,0.1);">Esc</kbd>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Notification Container -->
   <div class="notification-container" id="notifications-wrapper"></div>

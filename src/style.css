@@ -3439,22 +3439,49 @@ input[type="number"]::-webkit-outer-spin-button {
   transform: translateY(-50%) rotate(180deg);
 }
 
-/* Hide any injected zoom/panning/navigation controls overlay inside the chart container */
-#chart-container > div:not(.tv-lightweight-charts),
-#chart-container > button,
-#chart-container > svg,
-.tv-lightweight-charts button,
-.tv-lightweight-charts [class*="control"],
-.tv-lightweight-charts [class*="navigation"],
-.tv-lightweight-charts [class*="zoom"],
-.tv-lightweight-charts [class*="button"],
-.tv-lightweight-charts [class*="btn"],
-.tv-lightweight-charts [class*="reset"],
-.tv-lightweight-charts [class*="reload"],
-.tv-lightweight-charts [class*="arrow"],
-.tv-lightweight-charts__go-to-realtime-button,
-.chart-controls,
-.zoom-controls,
-.navigation-buttons {
-  display: none !important;
+/* Chart Navigation Overlay (TradingView Style) */
+.chart-navigation-overlay {
+  position: absolute;
+  bottom: 32px;
+  left: 42px;
+  background-color: rgba(12, 13, 18, 0.85);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  padding: 2px;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chart-wrapper.toolbar-collapsed .chart-navigation-overlay {
+  left: 10px;
+}
+
+.nav-overlay-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+  outline: none;
+  font-family: inherit;
+}
+
+.nav-overlay-btn:hover {
+  background-color: var(--bg-active);
+  color: #fff;
+}
+
+.nav-overlay-btn:active {
+  transform: scale(0.92);
 }

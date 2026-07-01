@@ -801,6 +801,44 @@ function initChart() {
   });
   resizeObserver.observe(container);
 
+  // Bind chart navigation overlay controls
+  const zoomInBtn = document.getElementById('chart-nav-zoom-in');
+  const zoomOutBtn = document.getElementById('chart-nav-zoom-out');
+  const navLeftBtn = document.getElementById('chart-nav-left');
+  const navRightBtn = document.getElementById('chart-nav-right');
+  const navResetBtn = document.getElementById('chart-nav-reset');
+
+  if (zoomInBtn) {
+    zoomInBtn.addEventListener('click', () => {
+      const ts = chart.timeScale();
+      ts.applyOptions({ barSpacing: ts.options().barSpacing * 1.25 });
+    });
+  }
+  if (zoomOutBtn) {
+    zoomOutBtn.addEventListener('click', () => {
+      const ts = chart.timeScale();
+      ts.applyOptions({ barSpacing: Math.max(0.5, ts.options().barSpacing / 1.25) });
+    });
+  }
+  if (navLeftBtn) {
+    navLeftBtn.addEventListener('click', () => {
+      const ts = chart.timeScale();
+      ts.scrollToPosition(ts.scrollPosition() - 15, true);
+    });
+  }
+  if (navRightBtn) {
+    navRightBtn.addEventListener('click', () => {
+      const ts = chart.timeScale();
+      ts.scrollToPosition(ts.scrollPosition() + 15, true);
+    });
+  }
+  if (navResetBtn) {
+    navResetBtn.addEventListener('click', () => {
+      chart.timeScale().resetTimeScale();
+      chart.timeScale().scrollToRealTime();
+    });
+  }
+
   // Bind right-click and double-click handlers for interactive SL/TP chart context menu
   container.addEventListener('dblclick', (e) => {
     if (isPickingTp || isPickingSl || isPickingAlertPrice || activeDrawingTool) return;

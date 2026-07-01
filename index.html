@@ -487,6 +487,16 @@
               <!-- Chart Container -->
               <div id="chart-container"></div>
               <canvas id="chart-drawing-canvas"></canvas>
+
+              <!-- Chart Navigation Controls Overlay (TradingView Style) -->
+              <div class="chart-navigation-overlay" id="chart-nav-overlay">
+                <button class="nav-overlay-btn" id="chart-nav-zoom-out" title="Zoom Out">−</button>
+                <button class="nav-overlay-btn" id="chart-nav-zoom-in" title="Zoom In">+</button>
+                <button class="nav-overlay-btn" id="chart-nav-left" title="Scroll Left">‹</button>
+                <button class="nav-overlay-btn" id="chart-nav-right" title="Scroll Right">›</button>
+                <button class="nav-overlay-btn" id="chart-nav-reset" title="Reset View">↺</button>
+              </div>
+
               <div id="chart-loader" class="chart-overlay-loader">
                 <div class="spinner"></div>
                 <span>Loading Bitstar Chart Terminal...</span>

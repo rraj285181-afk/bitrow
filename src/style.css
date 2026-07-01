@@ -667,7 +667,8 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 8px 0 40px; /* 32px sidebar offset + 8px spacing */
+  padding: 0 8px 0 40px;
+  /* 32px sidebar offset + 8px spacing */
   flex-shrink: 0;
 }
 
@@ -3442,17 +3443,26 @@ input[type="number"]::-webkit-outer-spin-button {
 /* Chart Navigation Overlay (TradingView Style) */
 .chart-navigation-overlay {
   position: absolute;
-  bottom: 50px;
+  bottom: 52px;
   left: 50%;
   transform: translateX(-50%);
   background-color: rgba(12, 13, 18, 0.85);
-  border: 1px solid var(--border-color);
   border-radius: var(--border-radius-sm);
   display: flex;
   padding: 2px;
   z-index: 10;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
+  
+  /* Hidden by default, fades in when chart is hovered */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.chart-wrapper:hover .chart-navigation-overlay {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .nav-overlay-btn {

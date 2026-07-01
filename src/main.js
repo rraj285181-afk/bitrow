@@ -157,7 +157,6 @@ function initApp() {
   startLatencySimulator();
   
   // New features initializers
-  initKeyboardShortcuts();
   initHistoryExporter();
   
   // Initialize drawing toolbar collapsible drawer
@@ -3991,97 +3990,6 @@ function updateInstrumentsPrices(coins) {
     if (changeEl) {
       changeEl.textContent = `${isUp ? '+' : ''}${changePct.toFixed(2)}%`;
       changeEl.className = `instrument-change font-mono ${isUp ? 'up' : 'down'}`;
-    }
-  });
-}
-
-// Initialize Keyboard Hotkeys & Modal Controller
-function initKeyboardShortcuts() {
-  const hotkeysBtn = document.getElementById('hotkeys-help-btn');
-  const modal = document.getElementById('hotkeys-modal');
-  const closeBtn = document.getElementById('hotkeys-modal-close');
-
-  if (hotkeysBtn && modal) {
-    hotkeysBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      modal.classList.toggle('hidden');
-    });
-  }
-
-  if (closeBtn && modal) {
-    closeBtn.addEventListener('click', () => {
-      modal.classList.add('hidden');
-    });
-  }
-
-  // Close hotkeys modal if clicked outside
-  document.addEventListener('click', (e) => {
-    if (modal && !modal.classList.contains('hidden') && hotkeysBtn && !hotkeysBtn.contains(e.target) && !modal.contains(e.target)) {
-      modal.classList.add('hidden');
-    }
-  });
-
-  // Global keydown listeners for shortcuts
-  window.addEventListener('keydown', (e) => {
-    // Avoid triggering shortcuts if typing inside form inputs/select elements
-    const tag = document.activeElement.tagName.toLowerCase();
-    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-
-    // SPACE: Switch active symbol asset tab
-    if (e.code === 'Space') {
-      e.preventDefault();
-      const activeTab = document.querySelector('.asset-tab.active');
-      if (activeTab) {
-        const tabs = Array.from(document.querySelectorAll('.asset-tab'));
-        if (tabs.length > 1) {
-          const index = tabs.indexOf(activeTab);
-          const nextIndex = (index + 1) % tabs.length;
-          tabs[nextIndex].click();
-          showToast('info', 'Tab Switched', `Active asset tab changed to ${tabs[nextIndex].textContent.trim()}`);
-        }
-      }
-    }
-
-    // ALT + B: Activate BUY mode / confirm order
-    if (e.altKey && e.code === 'KeyB') {
-      e.preventDefault();
-      const buyTrigger = document.getElementById('action-buy-trigger');
-      if (buyTrigger) buyTrigger.click();
-    }
-
-    // ALT + S: Activate SELL mode / confirm order
-    if (e.altKey && e.code === 'KeyS') {
-      e.preventDefault();
-      const sellTrigger = document.getElementById('action-sell-trigger');
-      if (sellTrigger) sellTrigger.click();
-    }
-
-    // ALT + A: Trigger Price Alert picker
-    if (e.altKey && e.code === 'KeyA') {
-      e.preventDefault();
-      const alertPicker = document.getElementById('alert-chart-picker-btn');
-      if (alertPicker) alertPicker.click();
-    }
-
-    // ESCAPE: Dismiss TP/SL/Alert chart picking state or cancel drawing tools
-    if (e.code === 'Escape') {
-      isPickingTp = false;
-      isPickingSl = false;
-      isPickingAlertPrice = false;
-      
-      const tpPicker = document.getElementById('tp-chart-picker');
-      const slPicker = document.getElementById('sl-chart-picker');
-      const alertPicker = document.getElementById('alert-chart-picker-btn');
-      
-      if (tpPicker) tpPicker.classList.remove('picking');
-      if (slPicker) slPicker.classList.remove('picking');
-      if (alertPicker) alertPicker.classList.remove('alert-picker-active');
-      document.getElementById('chart-container').style.cursor = 'default';
-
-      if (activeDrawingTool) {
-        setDrawingTool(null);
-        showToast('info', 'Drawing Cancelled', 'Active drawing tool cancelled.');
-      }
     }
   });
 }

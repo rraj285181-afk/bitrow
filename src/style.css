@@ -3443,7 +3443,8 @@ input[type="number"]::-webkit-outer-spin-button {
 .chart-navigation-overlay {
   position: absolute;
   bottom: 32px;
-  left: 42px;
+  left: 50%;
+  transform: translateX(-50%);
   background-color: rgba(12, 13, 18, 0.85);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-sm);
@@ -3452,11 +3453,6 @@ input[type="number"]::-webkit-outer-spin-button {
   z-index: 10;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
-  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.chart-wrapper.toolbar-collapsed .chart-navigation-overlay {
-  left: 10px;
 }
 
 .nav-overlay-btn {

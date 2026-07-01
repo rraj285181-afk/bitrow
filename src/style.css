@@ -3438,3 +3438,17 @@ input[type="number"]::-webkit-outer-spin-button {
 .bottom-portfolio-panel.collapsed .portfolio-collapse-btn {
   transform: translateY(-50%) rotate(180deg);
 }
+
+/* Hide any injected zoom/panning/navigation controls overlay inside the chart container */
+#chart-container div[class*="control"],
+#chart-container div[class*="navigation"],
+#chart-container div[class*="zoom"],
+#chart-container div[class*="button"],
+#chart-container button,
+#chart-container svg,
+.tv-lightweight-charts__go-to-realtime-button,
+.chart-controls,
+.zoom-controls,
+.navigation-buttons {
+  display: none !important;
+}

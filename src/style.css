@@ -3454,8 +3454,8 @@ input[type="number"]::-webkit-outer-spin-button {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
   
-  /* Translucent by default, becomes opaque when hovered directly */
-  opacity: 0.25;
+  /* Completely hidden by default, fades in when hovered directly */
+  opacity: 0;
   transition: opacity 0.2s ease;
 }
 

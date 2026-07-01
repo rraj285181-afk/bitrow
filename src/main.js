@@ -4019,7 +4019,7 @@ function initHistoryExporter() {
         const openTime = formatBitstarDateTime(trade.openTime);
         const closeTime = formatBitstarDateTime(trade.closeTime);
         const swap = trade.swap ? trade.swap.toFixed(2) : '0.00';
-        const reason = trade.reason || 'Closed';
+        const reason = trade.exitReason || 'Closed';
         const pnl = trade.pnl.toFixed(2);
 
         const row = `"${symbol}","${type}",${volume},${openPrice},${closePrice},"${tp}","${sl}","${openTime}","${closeTime}",${swap},"${reason}",${pnl}`;

@@ -3442,7 +3442,7 @@ input[type="number"]::-webkit-outer-spin-button {
 /* Chart Navigation Overlay (TradingView Style) */
 .chart-navigation-overlay {
   position: absolute;
-  bottom: 32px;
+  bottom: 50px;
   left: 50%;
   transform: translateX(-50%);
   background-color: rgba(12, 13, 18, 0.85);

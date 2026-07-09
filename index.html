@@ -14,6 +14,7 @@
     rel="stylesheet">
   <link rel="stylesheet" href="/src/style.css">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.11.1/ethers.umd.min.js"></script>
   <style>
     @keyframes db-spin {
       0% { transform: rotate(0deg); }
@@ -421,6 +422,10 @@
               <span style="color: var(--text-secondary); font-size: 8px;">▼</span>
             </div>
           </div>
+          <!-- Deposit Button -->
+          <button id="deposit-crypto-btn" class="hidden" style="background: var(--accent-color); color: #000; border: none; padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: 700; cursor: pointer; transition: all 0.15s ease;">
+            Deposit
+          </button>
         </div>
         <!-- User Profile / Auth Section -->
         <div id="user-profile-section" style="display: flex; align-items: center; gap: 8px; border-left: 1px solid var(--border-color); padding-left: 12px; margin-left: 4px;">
@@ -1280,6 +1285,39 @@
 
 
 
+
+  <!-- Deposit Modal -->
+  <div class="modal-overlay" id="deposit-modal-overlay">
+    <div class="modify-modal" style="width: 400px;">
+      <div class="modal-header">
+        <h3>Deposit Crypto (Polygon Mainnet)</h3>
+        <span class="modal-close" id="close-deposit-modal">×</span>
+      </div>
+      <div class="modal-body" style="gap: 16px;">
+        <div class="modal-info-panel" style="display: flex; flex-direction: column; gap: 8px;">
+          <p style="font-size: 11px; color: var(--text-secondary); margin: 0; line-height: 1.4;">Connect your Web3 wallet and deposit MATIC to fund your trading account. USD value will be credited automatically.</p>
+          <button id="connect-wallet-btn" style="background: rgba(124, 77, 255, 0.15); border: 1px solid rgba(124, 77, 255, 0.5); color: #b388ff; padding: 8px; border-radius: 4px; font-weight: 700; cursor: pointer; transition: all 0.2s;">
+            Connect Wallet
+          </button>
+          <div id="wallet-address-display" class="hidden" style="font-family: var(--font-mono); font-size: 10px; color: #00c076; word-break: break-all;"></div>
+        </div>
+        
+        <div class="modal-input-group">
+          <label class="modal-section-title">Amount (MATIC)</label>
+          <div class="modal-input-wrapper">
+            <input type="number" id="deposit-amount-input" placeholder="0.00" step="any">
+            <span class="suffix">MATIC</span>
+          </div>
+        </div>
+        
+        <div id="deposit-status-msg" class="hidden" style="font-size: 10px; color: var(--text-secondary); padding: 8px; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color);"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn cancel" id="cancel-deposit-btn">Cancel</button>
+        <button class="modal-btn confirm" id="submit-deposit-btn" disabled style="opacity: 0.5; cursor: not-allowed;">Send Deposit</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Notification Container -->
   <div class="notification-container" id="notifications-wrapper"></div>

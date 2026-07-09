@@ -158,6 +158,7 @@ function initApp() {
 
   // New features initializers
   initHistoryExporter();
+  initWeb3Deposit();
 
   // Initialize drawing toolbar collapsible drawer
   const collapseBtn = document.getElementById('drawing-toolbar-collapse-btn');
@@ -4717,6 +4718,143 @@ function initGoogleAuth() {
         google.accounts.id.prompt();
       }
     }
+  }
+
+  function initWeb3Deposit() {
+    const depositBtn = document.getElementById('deposit-crypto-btn');
+    const modalOverlay = document.getElementById('deposit-modal-overlay');
+    const closeBtn = document.getElementById('close-deposit-modal');
+    const cancelBtn = document.getElementById('cancel-deposit-btn');
+    const connectBtn = document.getElementById('connect-wallet-btn');
+    const submitBtn = document.getElementById('submit-deposit-btn');
+    const walletDisplay = document.getElementById('wallet-address-display');
+    const amountInput = document.getElementById('deposit-amount-input');
+    const statusMsg = document.getElementById('deposit-status-msg');
+    
+    let userSigner = null;
+
+    depositBtn.addEventListener('click', () => {
+      if (tradingEngine.isGuest) {
+        showToast('error', 'Login Required', 'You must sign in to deposit funds.');
+        return;
+      }
+      modalOverlay.classList.add('show');
+    });
+
+    const closeModal = () => {
+      modalOverlay.classList.remove('show');
+      statusMsg.classList.add('hidden');
+      amountInput.value = '';
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+
+    connectBtn.addEventListener('click', async () => {
+      if (typeof window.ethereum === 'undefined') {
+        statusMsg.textContent = "MetaMask not detected. Please install a Web3 wallet.";
+        statusMsg.style.color = "#ff4d4d";
+        statusMsg.classList.remove('hidden');
+        return;
+      }
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        const network = await provider.getNetwork();
+        
+        // Ensure user is on Polygon Mainnet (chainId 137)
+        if (network.chainId !== 137n) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0x89' }], // 137 in hex
+            });
+          } catch (switchError) {
+            statusMsg.textContent = "Please switch your wallet to Polygon Mainnet.";
+            statusMsg.style.color = "#ff4d4d";
+            statusMsg.classList.remove('hidden');
+            return;
+          }
+        }
+        
+        userSigner = await provider.getSigner();
+        const address = await userSigner.getAddress();
+        
+        connectBtn.classList.add('hidden');
+        walletDisplay.textContent = "Connected: " + address.substring(0,6) + "..." + address.substring(address.length - 4);
+        walletDisplay.classList.remove('hidden');
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+        
+      } catch (err) {
+        statusMsg.textContent = "Failed to connect wallet: " + err.message;
+        statusMsg.style.color = "#ff4d4d";
+        statusMsg.classList.remove('hidden');
+      }
+    });
+
+    submitBtn.addEventListener('click', async () => {
+      if (!userSigner) return;
+      const amount = amountInput.value;
+      if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+        statusMsg.textContent = "Please enter a valid amount.";
+        statusMsg.style.color = "#ff4d4d";
+        statusMsg.classList.remove('hidden');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Processing...";
+      statusMsg.textContent = "Please approve the transaction in your wallet...";
+      statusMsg.style.color = "var(--text-secondary)";
+      statusMsg.classList.remove('hidden');
+
+      try {
+        // Warning: This admin address is meant to be fetched from backend or hardcoded here securely
+        // In this implementation, the backend does the true check against process.env.RECEIVING_WALLET_ADDRESS
+        // The frontend needs to know where to send it. We'll fetch it from an API or just use a placeholder
+        // For security, it's best to fetch it.
+        const adminWalletRes = await fetch('/api/wallet/address');
+        if (!adminWalletRes.ok) throw new Error("Could not fetch receiving address.");
+        const { address: adminAddress } = await adminWalletRes.json();
+
+        const tx = await userSigner.sendTransaction({
+          to: adminAddress,
+          value: ethers.parseEther(amount.toString())
+        });
+
+        statusMsg.textContent = "Waiting for network confirmation...";
+        const receipt = await tx.wait();
+
+        if (receipt.status === 1) {
+          statusMsg.textContent = "Transaction confirmed! Verifying with backend...";
+          const verifyRes = await fetch('/api/wallet/deposit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ txHash: tx.hash })
+          });
+          const verifyData = await verifyRes.json();
+
+          if (verifyRes.ok) {
+            statusMsg.textContent = `Success! Credited ${verifyData.amountUsd.toFixed(2)} USD.`;
+            statusMsg.style.color = "#00c076";
+            tradingEngine.balance += verifyData.amountUsd;
+            updateBalanceUI();
+            setTimeout(closeModal, 3000);
+          } else {
+            throw new Error(verifyData.error || "Backend verification failed.");
+          }
+        } else {
+          throw new Error("Transaction failed on the network.");
+        }
+      } catch (err) {
+        statusMsg.textContent = err.message.substring(0, 50) + (err.message.length > 50 ? "..." : "");
+        statusMsg.style.color = "#ff4d4d";
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Send Deposit";
+      }
+    });
   }
 
   function tryStartGIS() {

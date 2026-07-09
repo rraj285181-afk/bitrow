@@ -182,7 +182,34 @@ class MockMarket {
   }
 
   generateMockHistory(symbol, timeframeMin) {
-    return [];
+    const candles = [];
+    const now = Math.floor(Date.now() / 1000);
+    const intervalSec = timeframeMin * 60;
+    const limit = 200;
+    let basePrice = this.coins[symbol] ? this.coins[symbol].currentPrice : 1.0;
+    if (basePrice <= 0) basePrice = 1.0;
+
+    let time = now - (limit * intervalSec);
+    let close = basePrice;
+
+    for (let i = 0; i < limit; i++) {
+      const open = close;
+      const volatility = open * 0.002;
+      const high = open + (Math.random() * volatility);
+      const low = open - (Math.random() * volatility);
+      close = low + (Math.random() * (high - low));
+      
+      candles.push({
+        time: time,
+        open: open,
+        high: high,
+        low: low,
+        close: close,
+        volume: Math.random() * 1000 + 100
+      });
+      time += intervalSec;
+    }
+    return candles;
   }
 
   async fetchHistoryFromApi(symbol, timeframeMin) {
@@ -308,11 +335,21 @@ class MockMarket {
         
         this.notify();
       } else {
-        this.coins[symbol].fetchedTimeframes[timeframeMin] = false;
+        // Fallback to mock data if empty
+        const mockCandles = this.generateMockHistory(symbol, timeframeMin);
+        this.coins[symbol].history[timeframeMin] = mockCandles;
+        this.coins[symbol].fetchedTimeframes[timeframeMin] = true;
+        this.coins[symbol].historyVersion = (this.coins[symbol].historyVersion || 0) + 1;
+        this.notify();
       }
     } catch (error) {
       console.error(`Failed to fetch history for ${symbol} (${timeframeMin}m):`, error);
-      this.coins[symbol].fetchedTimeframes[timeframeMin] = false;
+      // Fallback to mock data on error
+      const mockCandles = this.generateMockHistory(symbol, timeframeMin);
+      this.coins[symbol].history[timeframeMin] = mockCandles;
+      this.coins[symbol].fetchedTimeframes[timeframeMin] = true;
+      this.coins[symbol].historyVersion = (this.coins[symbol].historyVersion || 0) + 1;
+      this.notify();
     }
   }
 

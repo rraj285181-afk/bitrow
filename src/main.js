@@ -4684,22 +4684,20 @@ function initGoogleAuth() {
 
         updateLoginUI(session.email, session.name, session.picture);
       } else {
-        // No valid session cookie - unauthenticated state
-        tradingEngine.accountId = null;
+        // Fallback to Demo Account instead of forcing Google Login
+        tradingEngine.accountId = tradingEngine.generateAccountId();
         tradingEngine.isGuest = true;
+        tradingEngine.loadStateFromServer();
         
-        if (loginBtnContainer) loginBtnContainer.classList.remove('hidden');
-        if (loggedInProfile) loggedInProfile.classList.add('hidden');
-        hideRightWorkspace();
+        updateLoginUI('demo@bitrow.com', 'Demo Account', 'https://ui-avatars.com/api/?name=Demo+Account&background=333&color=fff');
       }
     } catch (err) {
       console.error('Session initialization failed:', err);
-      tradingEngine.accountId = null;
+      tradingEngine.accountId = tradingEngine.generateAccountId();
       tradingEngine.isGuest = true;
+      tradingEngine.loadStateFromServer();
       
-      if (loginBtnContainer) loginBtnContainer.classList.remove('hidden');
-      if (loggedInProfile) loggedInProfile.classList.add('hidden');
-      hideRightWorkspace();
+      updateLoginUI('demo@bitrow.com', 'Demo Account', 'https://ui-avatars.com/api/?name=Demo+Account&background=333&color=fff');
     }
   }
 
@@ -4732,9 +4730,9 @@ function initGoogleAuth() {
         });
       }
 
-      // Only show One Tap if we are currently a guest
+      // Do not show One Tap popup automatically to avoid annoyance
       if (tradingEngine.isGuest) {
-        google.accounts.id.prompt();
+        // google.accounts.id.prompt();
       }
     }
   }

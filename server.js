@@ -332,6 +332,113 @@ app.post('/api/wallet/deposit', authenticateSession, async (req, res) => {
   }
 });
 
+// --- 3.7. WEB3 CRYPTO WITHDRAW API ---
+app.post('/api/wallet/withdraw', authenticateSession, async (req, res) => {
+  const { walletAddress, amountUsd } = req.body;
+  if (!walletAddress || typeof walletAddress !== 'string' || !walletAddress.startsWith('0x')) {
+    return res.status(400).json({ error: 'Invalid Polygon wallet address' });
+  }
+  if (!amountUsd || isNaN(amountUsd) || parseFloat(amountUsd) <= 0) {
+    return res.status(400).json({ error: 'Invalid withdrawal amount' });
+  }
+
+  const amount = parseFloat(amountUsd);
+
+  try {
+    await query('BEGIN');
+    
+    // Check balance
+    const accountRes = await query('SELECT balance FROM trading_accounts WHERE account_id = $1 FOR UPDATE', [req.user.accountId]);
+    if (accountRes.rows.length === 0) {
+      await query('ROLLBACK');
+      return res.status(404).json({ error: 'Trading account not found' });
+    }
+    
+    const currentBalance = parseFloat(accountRes.rows[0].balance);
+    if (currentBalance < amount) {
+      await query('ROLLBACK');
+      return res.status(400).json({ error: 'Insufficient balance' });
+    }
+
+    // Deduct balance
+    await query('UPDATE trading_accounts SET balance = balance - $1 WHERE account_id = $2', [amount, req.user.accountId]);
+    
+    // Record withdrawal request
+    await query(
+      'INSERT INTO crypto_withdrawals (account_id, wallet_address, amount_usd, status) VALUES ($1, $2, $3, $4)',
+      [req.user.accountId, walletAddress, amount, 'pending']
+    );
+
+    await query('COMMIT');
+    res.json({ success: true, message: 'Withdrawal request submitted successfully' });
+  } catch (err) {
+    await query('ROLLBACK').catch(() => {});
+    console.error('Wallet withdraw error:', err);
+    res.status(500).json({ error: 'Internal server error while processing withdrawal' });
+  }
+});
+
+// --- ADMIN MIDDLEWARE ---
+function authenticateAdmin(req, res, next) {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail || req.user.email !== adminEmail) {
+    return res.status(403).json({ error: 'Forbidden: Admin access required' });
+  }
+  next();
+}
+
+// --- 4. ADMIN API ENDPOINTS ---
+app.get('/api/admin/stats', authenticateSession, authenticateAdmin, async (req, res) => {
+  try {
+    const usersRes = await query('SELECT COUNT(*) as total_users FROM trading_accounts');
+    const balanceRes = await query('SELECT SUM(balance) as total_balance FROM trading_accounts');
+    const withdrawalsRes = await query('SELECT * FROM crypto_withdrawals ORDER BY created_at DESC');
+    const depositsRes = await query('SELECT COUNT(*) as total_deposits, SUM(amount_usd) as total_deposit_amount FROM crypto_deposits');
+
+    res.json({
+      totalUsers: parseInt(usersRes.rows[0].total_users || 0),
+      totalBalance: parseFloat(balanceRes.rows[0].total_balance || 0),
+      totalDeposits: parseInt(depositsRes.rows[0].total_deposits || 0),
+      totalDepositAmount: parseFloat(depositsRes.rows[0].total_deposit_amount || 0),
+      withdrawals: withdrawalsRes.rows
+    });
+  } catch (err) {
+    console.error('Admin stats error:', err);
+    res.status(500).json({ error: 'Failed to fetch admin stats' });
+  }
+});
+
+app.post('/api/admin/withdrawals/:id/approve', authenticateSession, authenticateAdmin, async (req, res) => {
+  try {
+    await query('UPDATE crypto_withdrawals SET status = $1 WHERE id = $2', ['approved', req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to approve withdrawal' });
+  }
+});
+
+app.post('/api/admin/withdrawals/:id/reject', authenticateSession, authenticateAdmin, async (req, res) => {
+  try {
+    await query('BEGIN');
+    const wRes = await query('SELECT * FROM crypto_withdrawals WHERE id = $1 FOR UPDATE', [req.params.id]);
+    if (wRes.rows.length === 0 || wRes.rows[0].status !== 'pending') {
+      await query('ROLLBACK');
+      return res.status(400).json({ error: 'Withdrawal not found or already processed' });
+    }
+    const withdrawal = wRes.rows[0];
+    
+    // Refund balance
+    await query('UPDATE trading_accounts SET balance = balance + $1 WHERE account_id = $2', [withdrawal.amount_usd, withdrawal.account_id]);
+    await query('UPDATE crypto_withdrawals SET status = $1 WHERE id = $2', ['rejected', req.params.id]);
+    
+    await query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await query('ROLLBACK').catch(() => {});
+    res.status(500).json({ error: 'Failed to reject withdrawal' });
+  }
+});
+
 app.post('/api/account/save', authenticateSession, async (req, res) => {
   const { accountId, balance, positions, pendingOrders, history } = req.body;
 
@@ -391,6 +498,16 @@ async function initDatabase() {
         tx_hash VARCHAR(255) PRIMARY KEY,
         account_id VARCHAR(255),
         amount_usd DECIMAL(15, 2),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await query(`
+      CREATE TABLE IF NOT EXISTS crypto_withdrawals (
+        id SERIAL PRIMARY KEY,
+        account_id VARCHAR(255),
+        wallet_address VARCHAR(255),
+        amount_usd DECIMAL(15, 2),
+        status VARCHAR(50) DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);

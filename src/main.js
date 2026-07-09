@@ -159,6 +159,8 @@ function initApp() {
   // New features initializers
   initHistoryExporter();
   initWeb3Deposit();
+  initWeb3Withdraw();
+  initAdminPanel();
 
   // Initialize drawing toolbar collapsible drawer
   const collapseBtn = document.getElementById('drawing-toolbar-collapse-btn');
@@ -4569,16 +4571,26 @@ function initGoogleAuth() {
     });
   }
 
-  // Handle Login UI elements update
+    // Handle Login UI elements update
   function updateLoginUI(email, name, picture) {
     if (loginBtnContainer) loginBtnContainer.classList.add('hidden');
     if (loggedInProfile) loggedInProfile.classList.remove('hidden');
+    
+    const depositBtn = document.getElementById('deposit-crypto-btn');
+    const withdrawBtn = document.getElementById('withdraw-crypto-btn');
+    if (depositBtn) depositBtn.classList.remove('hidden');
+    if (withdrawBtn) withdrawBtn.classList.remove('hidden');
+
     // Only set src if picture is a valid non-empty string (avoid 404 from null/undefined)
     if (profilePic && picture && typeof picture === 'string' && picture.length > 0) {
       profilePic.src = picture;
     }
     if (profileName) profileName.textContent = name || '';
     if (profileEmail) profileEmail.textContent = email || '';
+
+    if (window.checkAdminStatus) {
+      window.checkAdminStatus();
+    }
 
     showRightWorkspace();
   }
@@ -4630,6 +4642,13 @@ function initGoogleAuth() {
         if (profileDropdown) profileDropdown.classList.add('hidden');
         if (loginBtnContainer) loginBtnContainer.classList.remove('hidden');
         if (loggedInProfile) loggedInProfile.classList.add('hidden');
+        
+        const depositBtn = document.getElementById('deposit-crypto-btn');
+        const withdrawBtn = document.getElementById('withdraw-crypto-btn');
+        const adminBtn = document.getElementById('admin-panel-btn');
+        if (depositBtn) depositBtn.classList.add('hidden');
+        if (withdrawBtn) withdrawBtn.classList.add('hidden');
+        if (adminBtn) adminBtn.classList.add('hidden');
 
         // Clear all in-memory trading state immediately (prevent old data flash)
         tradingEngine.positions = [];
@@ -4855,6 +4874,195 @@ function initGoogleAuth() {
         submitBtn.textContent = "Send Deposit";
       }
     });
+  }
+
+  function initWeb3Withdraw() {
+    const withdrawBtn = document.getElementById('withdraw-crypto-btn');
+    const modalOverlay = document.getElementById('withdraw-modal-overlay');
+    const closeBtn = document.getElementById('close-withdraw-modal');
+    const cancelBtn = document.getElementById('cancel-withdraw-btn');
+    const submitBtn = document.getElementById('submit-withdraw-btn');
+    const addressInput = document.getElementById('withdraw-address-input');
+    const amountInput = document.getElementById('withdraw-amount-input');
+    const statusMsg = document.getElementById('withdraw-status-msg');
+
+    withdrawBtn.addEventListener('click', () => {
+      if (tradingEngine.isGuest) {
+        showToast('error', 'Login Required', 'You must sign in to withdraw funds.');
+        return;
+      }
+      modalOverlay.classList.add('show');
+    });
+
+    const closeModal = () => {
+      modalOverlay.classList.remove('show');
+      statusMsg.classList.add('hidden');
+      addressInput.value = '';
+      amountInput.value = '';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Request Withdraw';
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+
+    submitBtn.addEventListener('click', async () => {
+      const address = addressInput.value.trim();
+      const amount = parseFloat(amountInput.value);
+      
+      if (!address || !address.startsWith('0x') || address.length !== 42) {
+        statusMsg.textContent = "Please enter a valid Polygon address.";
+        statusMsg.style.color = "#ff4d4d";
+        statusMsg.classList.remove('hidden');
+        return;
+      }
+      
+      if (!amount || isNaN(amount) || amount <= 0 || amount > tradingEngine.balance) {
+        statusMsg.textContent = "Invalid amount or insufficient balance.";
+        statusMsg.style.color = "#ff4d4d";
+        statusMsg.classList.remove('hidden');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Processing...";
+      statusMsg.textContent = "Submitting withdrawal request...";
+      statusMsg.style.color = "var(--text-secondary)";
+      statusMsg.classList.remove('hidden');
+
+      try {
+        const res = await fetch('/api/wallet/withdraw', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ walletAddress: address, amountUsd: amount })
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+          statusMsg.textContent = "Withdrawal request submitted successfully!";
+          statusMsg.style.color = "#00c076";
+          tradingEngine.balance -= amount;
+          updateBalanceUI();
+          setTimeout(closeModal, 2500);
+        } else {
+          throw new Error(data.error || "Failed to submit request.");
+        }
+      } catch (err) {
+        statusMsg.textContent = err.message;
+        statusMsg.style.color = "#ff4d4d";
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Request Withdraw";
+      }
+    });
+  }
+
+  function initAdminPanel() {
+    const adminBtn = document.getElementById('admin-panel-btn');
+    const modalOverlay = document.getElementById('admin-modal-overlay');
+    const closeBtn = document.getElementById('close-admin-modal');
+    const listContainer = document.getElementById('admin-withdrawals-list');
+    
+    // We will unhide the button during successful login if the backend confirms admin
+    // For simplicity, we can fetch stats. If it fails (403), they aren't admin.
+    // If it succeeds, they are admin and we show the button.
+    
+    // Expose a global or hook into login to check admin status
+    window.checkAdminStatus = async () => {
+      try {
+        const res = await fetch('/api/admin/stats');
+        if (res.ok) {
+          adminBtn.classList.remove('hidden');
+        }
+      } catch(e) {}
+    };
+
+    adminBtn.addEventListener('click', async () => {
+      modalOverlay.classList.add('show');
+      await refreshAdminStats();
+    });
+    
+    closeBtn.addEventListener('click', () => {
+      modalOverlay.classList.remove('show');
+    });
+
+    async function refreshAdminStats() {
+      try {
+        listContainer.innerHTML = 'Loading...';
+        const res = await fetch('/api/admin/stats');
+        if (!res.ok) throw new Error('Not authorized');
+        
+        const data = await res.json();
+        document.getElementById('admin-total-users').textContent = data.totalUsers;
+        document.getElementById('admin-total-balance').textContent = '$' + data.totalBalance.toFixed(2);
+        document.getElementById('admin-total-deposits').textContent = data.totalDeposits;
+        document.getElementById('admin-total-in').textContent = '$' + data.totalDepositAmount.toFixed(2);
+        
+        listContainer.innerHTML = '';
+        if (data.withdrawals.length === 0) {
+          listContainer.innerHTML = '<div style="padding: 8px; text-align: center;">No withdrawal requests found.</div>';
+          return;
+        }
+
+        data.withdrawals.forEach(w => {
+          const div = document.createElement('div');
+          div.style.background = 'var(--bg-tertiary)';
+          div.style.padding = '8px';
+          div.style.borderRadius = '4px';
+          div.style.display = 'flex';
+          div.style.justifyContent = 'space-between';
+          div.style.alignItems = 'center';
+          div.style.border = '1px solid var(--border-color)';
+          
+          let statusColor = w.status === 'pending' ? '#ff9f0a' : (w.status === 'approved' ? '#00c076' : '#ff4d4d');
+          
+          let actionButtons = '';
+          if (w.status === 'pending') {
+            actionButtons = `
+              <div style="display: flex; gap: 4px;">
+                <button class="admin-approve-btn" data-id="${w.id}" style="background: rgba(0, 192, 118, 0.2); border: 1px solid #00c076; color: #00c076; padding: 2px 6px; border-radius: 3px; font-size: 9px; cursor: pointer;">Approve</button>
+                <button class="admin-reject-btn" data-id="${w.id}" style="background: rgba(255, 77, 77, 0.2); border: 1px solid #ff4d4d; color: #ff4d4d; padding: 2px 6px; border-radius: 3px; font-size: 9px; cursor: pointer;">Reject</button>
+              </div>
+            `;
+          }
+
+          div.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-weight: 700; color: #fff;">$${parseFloat(w.amount_usd).toFixed(2)} USD</span>
+              <span style="font-family: var(--font-mono); font-size: 8px; color: var(--text-muted);">${w.wallet_address}</span>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+              <span style="color: ${statusColor}; font-weight: 600; text-transform: uppercase; font-size: 8px;">${w.status}</span>
+              ${actionButtons}
+            </div>
+          `;
+          listContainer.appendChild(div);
+        });
+
+        // Attach event listeners
+        document.querySelectorAll('.admin-approve-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const id = e.target.dataset.id;
+            if (confirm('Did you manually send the crypto? This will mark it as approved.')) {
+              await fetch(`/api/admin/withdrawals/${id}/approve`, { method: 'POST' });
+              refreshAdminStats();
+            }
+          });
+        });
+        
+        document.querySelectorAll('.admin-reject-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const id = e.target.dataset.id;
+            if (confirm('Are you sure you want to reject this and refund the user?')) {
+              await fetch(`/api/admin/withdrawals/${id}/reject`, { method: 'POST' });
+              refreshAdminStats();
+            }
+          });
+        });
+
+      } catch (err) {
+        listContainer.innerHTML = '<div style="color: #ff4d4d; padding: 8px;">Failed to load stats</div>';
+      }
+    }
   }
 
   function tryStartGIS() {

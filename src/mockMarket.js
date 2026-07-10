@@ -335,18 +335,17 @@ class MockMarket {
         
         this.notify();
       } else {
-        // Fallback to mock data if empty
-        const mockCandles = this.generateMockHistory(symbol, timeframeMin);
-        this.coins[symbol].history[timeframeMin] = mockCandles;
+        // No mock chart fallback
+        console.warn(`No history returned from API for ${symbol}. Keeping history empty.`);
+        this.coins[symbol].history[timeframeMin] = [];
         this.coins[symbol].fetchedTimeframes[timeframeMin] = true;
         this.coins[symbol].historyVersion = (this.coins[symbol].historyVersion || 0) + 1;
         this.notify();
       }
     } catch (error) {
       console.error(`Failed to fetch history for ${symbol} (${timeframeMin}m):`, error);
-      // Fallback to mock data on error
-      const mockCandles = this.generateMockHistory(symbol, timeframeMin);
-      this.coins[symbol].history[timeframeMin] = mockCandles;
+      // No mock chart fallback on error
+      this.coins[symbol].history[timeframeMin] = [];
       this.coins[symbol].fetchedTimeframes[timeframeMin] = true;
       this.coins[symbol].historyVersion = (this.coins[symbol].historyVersion || 0) + 1;
       this.notify();

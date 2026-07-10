@@ -1309,8 +1309,21 @@ function reloadChartData() {
   if (loader) {
     if (history.length === 0) {
       loader.classList.remove('hidden');
+      const textSpan = loader.querySelector('span');
+      const spinner = loader.querySelector('.spinner');
+      if (coin && coin.fetchedTimeframes && coin.fetchedTimeframes[activeTimeframe] === true) {
+        if (textSpan) textSpan.textContent = `No real-time chart data available for ${activeSymbol}.`;
+        if (spinner) spinner.style.display = 'none';
+      } else {
+        if (textSpan) textSpan.textContent = 'Loading Bitstar Chart Terminal...';
+        if (spinner) spinner.style.display = '';
+      }
     } else {
       loader.classList.add('hidden');
+      const textSpan = loader.querySelector('span');
+      const spinner = loader.querySelector('.spinner');
+      if (textSpan) textSpan.textContent = 'Loading Bitstar Chart Terminal...';
+      if (spinner) spinner.style.display = '';
     }
   }
 

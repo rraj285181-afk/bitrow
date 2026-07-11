@@ -15,7 +15,6 @@ class MockMarket {
     this.coins = {};
     this.listeners = [];
     this.tickInterval = null;
-    this.yahooPollingInterval = null; // store reference to clear if needed
     this.init();
   }
 
@@ -182,34 +181,7 @@ class MockMarket {
   }
 
   generateMockHistory(symbol, timeframeMin) {
-    const candles = [];
-    const now = Math.floor(Date.now() / 1000);
-    const intervalSec = timeframeMin * 60;
-    const limit = 200;
-    let basePrice = this.coins[symbol] ? this.coins[symbol].currentPrice : 1.0;
-    if (basePrice <= 0) basePrice = 1.0;
-
-    let time = now - (limit * intervalSec);
-    let close = basePrice;
-
-    for (let i = 0; i < limit; i++) {
-      const open = close;
-      const volatility = open * 0.002;
-      const high = open + (Math.random() * volatility);
-      const low = open - (Math.random() * volatility);
-      close = low + (Math.random() * (high - low));
-      
-      candles.push({
-        time: time,
-        open: open,
-        high: high,
-        low: low,
-        close: close,
-        volume: Math.random() * 1000 + 100
-      });
-      time += intervalSec;
-    }
-    return candles;
+    return [];
   }
 
   async fetchHistoryFromApi(symbol, timeframeMin) {
@@ -240,7 +212,6 @@ class MockMarket {
             req: { coin: coinName, interval: intervalStr, startTime: startTime, endTime: Date.now() }
           })
         });
-        if (!response.ok) throw new Error(`Hyperliquid API error: ${response.status}`);
         const data = await response.json();
         if (Array.isArray(data)) {
           candles = data.map(c => ({
@@ -262,7 +233,6 @@ class MockMarket {
         const rangeStr = this.mapTimeframeToYahooRange(timeframeMin);
         
         const response = await fetch(`/api-yahoo/v8/finance/chart/${yahooSymbol}?interval=${intervalStr}&range=${rangeStr}`);
-        if (!response.ok) throw new Error(`Yahoo Finance API error: ${response.status}`);
         const data = await response.json();
         if (data && data.chart && data.chart.result && data.chart.result[0]) {
           const result = data.chart.result[0];
@@ -335,20 +305,11 @@ class MockMarket {
         
         this.notify();
       } else {
-        // No mock chart fallback
-        console.warn(`No history returned from API for ${symbol}. Keeping history empty.`);
-        this.coins[symbol].history[timeframeMin] = [];
-        this.coins[symbol].fetchedTimeframes[timeframeMin] = true;
-        this.coins[symbol].historyVersion = (this.coins[symbol].historyVersion || 0) + 1;
-        this.notify();
+        this.coins[symbol].fetchedTimeframes[timeframeMin] = false;
       }
     } catch (error) {
       console.error(`Failed to fetch history for ${symbol} (${timeframeMin}m):`, error);
-      // No mock chart fallback on error
-      this.coins[symbol].history[timeframeMin] = [];
-      this.coins[symbol].fetchedTimeframes[timeframeMin] = true;
-      this.coins[symbol].historyVersion = (this.coins[symbol].historyVersion || 0) + 1;
-      this.notify();
+      this.coins[symbol].fetchedTimeframes[timeframeMin] = false;
     }
   }
 
@@ -415,10 +376,6 @@ class MockMarket {
         try {
           const yahooSymbol = this.mapSymbolToYahoo(symbol);
           const response = await fetch(`/api-yahoo/v8/finance/chart/${yahooSymbol}?interval=1m&range=1d`);
-          if (!response.ok) {
-            console.warn(`Yahoo poll for ${symbol} returned ${response.status}, skipping.`);
-            continue;
-          }
           const data = await response.json();
           if (data && data.chart && data.chart.result && data.chart.result[0]) {
             const meta = data.chart.result[0].meta;
@@ -438,7 +395,7 @@ class MockMarket {
     };
 
     poll();
-    this.yahooPollingInterval = setInterval(poll, 8000); // store reference; 8s to avoid rate limit
+    setInterval(poll, 8000); // 8 seconds polling to avoid rate limit
   }
 
   updateLastCandlePrice(coin, newPrice) {

@@ -12,23 +12,15 @@ const { Pool } = pg;
 const pool = process.env.DATABASE_URL
   ? new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-      connectionTimeoutMillis: 5000, // fail fast instead of hanging requests
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
     })
   : new Pool({
       user: process.env.DB_USER || 'postgres',
       host: process.env.DB_HOST || '127.0.0.1',
       database: process.env.DB_NAME || 'bitrow_db',
-      // pg requires string password — undefined causes SASL auth crash
-      password: process.env.DB_PASSWORD !== undefined ? String(process.env.DB_PASSWORD) : '',
+      password: process.env.DB_PASSWORD,
       port: parseInt(process.env.DB_PORT || '5432', 10),
-      connectionTimeoutMillis: 5000, // fail fast instead of hanging requests
     });
-
-// Warn on startup if no password is configured
-if (!process.env.DATABASE_URL && !process.env.DB_PASSWORD) {
-  console.warn('[DB] Warning: DB_PASSWORD is not set. Set it in your .env file to connect to PostgreSQL.');
-}
 
 // Log any unexpected pool errors
 pool.on('error', (err) => {

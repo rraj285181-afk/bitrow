@@ -17,7 +17,7 @@ function getPipSize(symbol) {
   if (cleanSymbol.includes('ETH')) return 1.00;
   if (cleanSymbol.includes('EUR')) return 0.0001;
   if (cleanSymbol.includes('XAU') || cleanSymbol === 'GC') return 0.01;
-  if (cleanSymbol.includes('XAG') || cleanSymbol === 'SI') return 0.01; // Silver
+  if (cleanSymbol.includes('XAG') || cleanSymbol === 'SI') return 0.0001; // Silver
   return 0.01; // USOIL
 }
 
@@ -36,9 +36,6 @@ class TradingEngine {
     this.storageKey = 'bitstar_demo_account_v1';
     this.listeners = [];
     this.isGuest = true; // Default to guest until authenticated
-    this._saveDebounceTimer = null; // debounce timer for saveStateToServer
-    this._heartbeatFailCount = 0;  // consecutive failures for backoff
-    this._heartbeatBaseMs = 10000; // normal interval 10s
     this.loadState();
     this.startHeartbeat();
   }
@@ -139,19 +136,6 @@ class TradingEngine {
   saveStateToServer() {
     if (!this.accountId) return;
 
-    // Debounce: coalesce rapid consecutive saves into a single server call (1.5s window)
-    if (this._saveDebounceTimer) {
-      clearTimeout(this._saveDebounceTimer);
-    }
-    this._saveDebounceTimer = setTimeout(() => {
-      this._saveDebounceTimer = null;
-      this._flushSaveToServer();
-    }, 1500);
-  }
-
-  _flushSaveToServer() {
-    if (!this.accountId) return;
-
     const state = {
       accountId: this.accountId,
       balance: this.balance,
@@ -189,31 +173,14 @@ class TradingEngine {
   }
 
   startHeartbeat() {
-    // Exponential backoff heartbeat — interval doubles on each failure up to 5 minutes
-    if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
-    const intervalMs = Math.min(this._heartbeatBaseMs * Math.pow(2, this._heartbeatFailCount || 0), 5 * 60 * 1000);
-    this.heartbeatInterval = setTimeout(() => {
-      this.heartbeatInterval = null;
+    // Ping backend every 3 seconds to check connection health instantly
+    this.heartbeatInterval = setInterval(() => {
       this.checkConnectionHealth();
-    }, intervalMs);
-  }
-
-  stopHeartbeat() {
-    if (this.heartbeatInterval) {
-      clearTimeout(this.heartbeatInterval);
-      this.heartbeatInterval = null;
-    }
-    if (this._saveDebounceTimer) {
-      clearTimeout(this._saveDebounceTimer);
-      this._saveDebounceTimer = null;
-    }
+    }, 3000);
   }
 
   checkConnectionHealth() {
-    if (!this.accountId) {
-      this.startHeartbeat(); // reschedule even if no accountId
-      return;
-    }
+    if (!this.accountId) return;
 
     fetch(`/api/account/${encodeURIComponent(this.accountId)}`)
       .then(res => {
@@ -225,27 +192,23 @@ class TradingEngine {
         return res.json();
       })
       .then(() => {
-        // Success — reset backoff counter
-        this._heartbeatFailCount = 0;
         if (!this.isLoaded) {
           this.isLoaded = true;
           this.notify();
         }
-        this.startHeartbeat(); // reschedule at normal interval
       })
       .catch(err => {
-        // Increment backoff counter (caps at 5 to limit max interval)
-        this._heartbeatFailCount = Math.min((this._heartbeatFailCount || 0) + 1, 5);
-        console.warn(`Heartbeat failed (attempt ${this._heartbeatFailCount}):`, err.message);
+        console.warn("Heartbeat connection check failed:", err.message);
         if (this.isLoaded) {
           this.isLoaded = false;
           this.notify();
         }
-        this.startHeartbeat(); // reschedule at longer interval
       });
   }
 
-  // No longer generating guest accounts
+  generateAccountId() {
+    return 'Real #' + Math.floor(100000 + Math.random() * 900000);
+  }
 
   resetAccount() {
     this.resetDefaults();
@@ -476,7 +439,6 @@ class TradingEngine {
             }
           }
         });
-        // Remove triggered targets AFTER building the partial close queue (not before)
         pos.tpTargets = pos.tpTargets.filter(t => !t.triggered);
       }
     });
@@ -623,7 +585,7 @@ class TradingEngine {
       return false;
     }
     const { symbol, type, volume, leverage, orderType, targetPrice, tp, sl } = orderParams;
-    const price = targetPrice; // same value regardless of orderType; validation below
+    const price = orderType === 'MARKET' ? targetPrice : targetPrice;
     
     // Safety checks
     if (!symbol || !type || !volume || volume <= 0 || !leverage || leverage <= 0 || isNaN(price) || price <= 0) {
@@ -860,37 +822,12 @@ class TradingEngine {
     return true;
   }
 
-  // Closes all open positions manually (batch - single save instead of N saves)
+  // Closes all open positions manually
   closeAllPositions() {
     if (this.positions.length === 0) return false;
-    // Close all at once without saving on each iteration
     while (this.positions.length > 0) {
-      const pos = this.positions.splice(0, 1)[0];
-      const finalPnl = pos.pnl;
-      this.balance += finalPnl;
-      this.history.unshift({
-        id: pos.id,
-        symbol: pos.symbol,
-        type: pos.type,
-        leverage: pos.leverage,
-        volume: pos.volume,
-        entryPrice: pos.entryPrice,
-        exitPrice: pos.currentPrice,
-        exitReason: 'Market Close',
-        pnl: finalPnl,
-        openTime: pos.timestamp,
-        closeTime: Date.now(),
-        tp: pos.tp || null,
-        sl: pos.sl || null,
-        swap: 0,
-        timestamp: Date.now()
-      });
-      this.logNotification('info', 'Position Closed', `Manual close of ${pos.symbol.split('/')[0]} ${pos.type}. P&L: $${finalPnl.toFixed(2)}`);
+      this.closePosition(this.positions[0].id);
     }
-    // Single save for all closed positions
-    this.recalculateStats({});
-    this.saveState();
-    this.notify();
     return true;
   }
 

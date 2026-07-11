@@ -5,13 +5,13 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import { query } from './db.js';
 import crypto from 'crypto';
 import fs from 'fs';
-import { ethers } from 'ethers';
+
 // ES Module setup
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-// Note: express.json() must come AFTER the proxy middleware, otherwise POST proxies will hang (504 Gateway Timeout)
+app.use(express.json()); // Enable JSON body parsing for API requests
 
 app.use((req, res, next) => {
   const originalEnd = res.end;
@@ -34,7 +34,6 @@ app.use('/api-yahoo', createProxyMiddleware({
   headers: {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Origin': 'https://finance.yahoo.com',
-    'Referer': 'https://finance.yahoo.com',
     'Connection': 'close'
   }
 }));
@@ -66,9 +65,6 @@ const wsProxy = createProxyMiddleware({
   }
 });
 app.use('/ws-hyperliquid', wsProxy);
-
-// --- POST-PROXY MIDDLEWARE ---
-app.use(express.json()); // Enable JSON body parsing for API requests
 
 // --- JWT & SESSION AUTHENTICATION ---
 function getSecret() {
@@ -141,7 +137,28 @@ function authenticateSession(req, res, next) {
   next();
 }
 
-  // Auth Router Endpoints
+// Auth Router Endpoints
+app.post('/api/auth/guest', (req, res) => {
+  const { accountId } = req.body;
+  if (!accountId || !/^[a-zA-Z0-9 #_@.-]+$/.test(accountId)) {
+    return res.status(400).json({ error: 'Invalid guest account ID format' });
+  }
+  
+  const payload = {
+    accountId,
+    isGuest: true,
+    exp: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 days expiration
+  };
+  const token = signToken(payload, JWT_SECRET);
+  
+  res.cookie('bitrow-session', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 30 * 24 * 60 * 60 * 1000
+  });
+  res.json({ success: true, accountId, isGuest: true });
+});
 
 
 
@@ -249,197 +266,6 @@ app.get('/api/account/:id', authenticateSession, async (req, res) => {
   }
 });
 
-// --- 3.5.5 WEB3 WALLET INFO API ---
-app.get('/api/wallet/address', authenticateSession, (req, res) => {
-  const address = process.env.RECEIVING_WALLET_ADDRESS;
-  if (!address) {
-    return res.status(500).json({ error: 'Admin wallet address not configured' });
-  }
-  res.json({ address });
-});
-
-// --- 3.6. WEB3 CRYPTO DEPOSIT API ---
-app.post('/api/wallet/deposit', authenticateSession, async (req, res) => {
-  const { txHash } = req.body;
-  if (!txHash || typeof txHash !== 'string' || !txHash.startsWith('0x')) {
-    return res.status(400).json({ error: 'Invalid transaction hash' });
-  }
-
-  const receivingWallet = process.env.RECEIVING_WALLET_ADDRESS;
-  if (!receivingWallet) {
-    return res.status(500).json({ error: 'RECEIVING_WALLET_ADDRESS is not configured in .env' });
-  }
-
-  try {
-    // 1. Check for replay attacks in database
-    const existingTx = await query('SELECT * FROM crypto_deposits WHERE tx_hash = $1', [txHash]);
-    if (existingTx.rows.length > 0) {
-      return res.status(400).json({ error: 'This deposit transaction has already been processed' });
-    }
-
-    // 2. Query blockchain
-    const provider = new ethers.JsonRpcProvider('https://polygon-rpc.com');
-    const tx = await provider.getTransaction(txHash);
-    
-    if (!tx) {
-      return res.status(404).json({ error: 'Transaction not found on the network. Wait for confirmations.' });
-    }
-
-    const receipt = await provider.getTransactionReceipt(txHash);
-    if (!receipt || receipt.status !== 1) {
-      return res.status(400).json({ error: 'Transaction failed or is still pending.' });
-    }
-
-    // 3. Verify destination
-    if (tx.to.toLowerCase() !== receivingWallet.toLowerCase()) {
-      return res.status(400).json({ error: 'Transaction was not sent to the correct admin wallet' });
-    }
-
-    // 4. Calculate amount in USD
-    const amountMatic = parseFloat(ethers.formatEther(tx.value));
-    if (amountMatic <= 0) {
-      return res.status(400).json({ error: 'Zero value transaction' });
-    }
-
-    // Fetch MATIC/POL price from Binance
-    const priceRes = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=POLUSDT').catch(() => null);
-    let maticPriceUsd = 0.5; // fallback
-    if (priceRes && priceRes.ok) {
-      const priceData = await priceRes.json();
-      maticPriceUsd = parseFloat(priceData.price);
-    }
-    const amountUsd = amountMatic * maticPriceUsd;
-
-    // 5. Update user's balance and record transaction in DB
-    await query('BEGIN');
-    
-    await query(
-      'INSERT INTO crypto_deposits (tx_hash, account_id, amount_usd) VALUES ($1, $2, $3)', 
-      [txHash, req.user.accountId, amountUsd]
-    );
-    
-    await query(
-      'UPDATE trading_accounts SET balance = balance + $1 WHERE account_id = $2',
-      [amountUsd, req.user.accountId]
-    );
-    
-    await query('COMMIT');
-
-    res.json({ success: true, amountUsd, amountMatic });
-  } catch (err) {
-    await query('ROLLBACK').catch(() => {});
-    console.error('Wallet deposit error:', err);
-    res.status(500).json({ error: 'Internal server error while verifying deposit' });
-  }
-});
-
-// --- 3.7. WEB3 CRYPTO WITHDRAW API ---
-app.post('/api/wallet/withdraw', authenticateSession, async (req, res) => {
-  const { walletAddress, amountUsd } = req.body;
-  if (!walletAddress || typeof walletAddress !== 'string' || !walletAddress.startsWith('0x')) {
-    return res.status(400).json({ error: 'Invalid Polygon wallet address' });
-  }
-  if (!amountUsd || isNaN(amountUsd) || parseFloat(amountUsd) <= 0) {
-    return res.status(400).json({ error: 'Invalid withdrawal amount' });
-  }
-
-  const amount = parseFloat(amountUsd);
-
-  try {
-    await query('BEGIN');
-    
-    // Check balance
-    const accountRes = await query('SELECT balance FROM trading_accounts WHERE account_id = $1 FOR UPDATE', [req.user.accountId]);
-    if (accountRes.rows.length === 0) {
-      await query('ROLLBACK');
-      return res.status(404).json({ error: 'Trading account not found' });
-    }
-    
-    const currentBalance = parseFloat(accountRes.rows[0].balance);
-    if (currentBalance < amount) {
-      await query('ROLLBACK');
-      return res.status(400).json({ error: 'Insufficient balance' });
-    }
-
-    // Deduct balance
-    await query('UPDATE trading_accounts SET balance = balance - $1 WHERE account_id = $2', [amount, req.user.accountId]);
-    
-    // Record withdrawal request
-    await query(
-      'INSERT INTO crypto_withdrawals (account_id, wallet_address, amount_usd, status) VALUES ($1, $2, $3, $4)',
-      [req.user.accountId, walletAddress, amount, 'pending']
-    );
-
-    await query('COMMIT');
-    res.json({ success: true, message: 'Withdrawal request submitted successfully' });
-  } catch (err) {
-    await query('ROLLBACK').catch(() => {});
-    console.error('Wallet withdraw error:', err);
-    res.status(500).json({ error: 'Internal server error while processing withdrawal' });
-  }
-});
-
-// --- ADMIN MIDDLEWARE ---
-function authenticateAdmin(req, res, next) {
-  const adminEmail = process.env.ADMIN_EMAIL;
-  if (!adminEmail || req.user.email !== adminEmail) {
-    return res.status(403).json({ error: 'Forbidden: Admin access required' });
-  }
-  next();
-}
-
-// --- 4. ADMIN API ENDPOINTS ---
-app.get('/api/admin/stats', authenticateSession, authenticateAdmin, async (req, res) => {
-  try {
-    const usersRes = await query('SELECT COUNT(*) as total_users FROM trading_accounts');
-    const balanceRes = await query('SELECT SUM(balance) as total_balance FROM trading_accounts');
-    const withdrawalsRes = await query('SELECT * FROM crypto_withdrawals ORDER BY created_at DESC');
-    const depositsRes = await query('SELECT COUNT(*) as total_deposits, SUM(amount_usd) as total_deposit_amount FROM crypto_deposits');
-
-    res.json({
-      totalUsers: parseInt(usersRes.rows[0].total_users || 0),
-      totalBalance: parseFloat(balanceRes.rows[0].total_balance || 0),
-      totalDeposits: parseInt(depositsRes.rows[0].total_deposits || 0),
-      totalDepositAmount: parseFloat(depositsRes.rows[0].total_deposit_amount || 0),
-      withdrawals: withdrawalsRes.rows
-    });
-  } catch (err) {
-    console.error('Admin stats error:', err);
-    res.status(500).json({ error: 'Failed to fetch admin stats' });
-  }
-});
-
-app.post('/api/admin/withdrawals/:id/approve', authenticateSession, authenticateAdmin, async (req, res) => {
-  try {
-    await query('UPDATE crypto_withdrawals SET status = $1 WHERE id = $2', ['approved', req.params.id]);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to approve withdrawal' });
-  }
-});
-
-app.post('/api/admin/withdrawals/:id/reject', authenticateSession, authenticateAdmin, async (req, res) => {
-  try {
-    await query('BEGIN');
-    const wRes = await query('SELECT * FROM crypto_withdrawals WHERE id = $1 FOR UPDATE', [req.params.id]);
-    if (wRes.rows.length === 0 || wRes.rows[0].status !== 'pending') {
-      await query('ROLLBACK');
-      return res.status(400).json({ error: 'Withdrawal not found or already processed' });
-    }
-    const withdrawal = wRes.rows[0];
-    
-    // Refund balance
-    await query('UPDATE trading_accounts SET balance = balance + $1 WHERE account_id = $2', [withdrawal.amount_usd, withdrawal.account_id]);
-    await query('UPDATE crypto_withdrawals SET status = $1 WHERE id = $2', ['rejected', req.params.id]);
-    
-    await query('COMMIT');
-    res.json({ success: true });
-  } catch (err) {
-    await query('ROLLBACK').catch(() => {});
-    res.status(500).json({ error: 'Failed to reject withdrawal' });
-  }
-});
-
 app.post('/api/account/save', authenticateSession, async (req, res) => {
   const { accountId, balance, positions, pendingOrders, history } = req.body;
 
@@ -492,24 +318,6 @@ async function initDatabase() {
         pending_orders JSONB DEFAULT '[]'::jsonb,
         history JSONB DEFAULT '[]'::jsonb,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    await query(`
-      CREATE TABLE IF NOT EXISTS crypto_deposits (
-        tx_hash VARCHAR(255) PRIMARY KEY,
-        account_id VARCHAR(255),
-        amount_usd DECIMAL(15, 2),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    await query(`
-      CREATE TABLE IF NOT EXISTS crypto_withdrawals (
-        id SERIAL PRIMARY KEY,
-        account_id VARCHAR(255),
-        wallet_address VARCHAR(255),
-        amount_usd DECIMAL(15, 2),
-        status VARCHAR(50) DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
     console.log('Database tables verified/created successfully.');

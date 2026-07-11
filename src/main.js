@@ -12,40 +12,40 @@ class SoundEffects {
       console.warn("Web Audio API not supported in this browser:", e);
     }
   }
-
+  
   static playSuccess() {
     try {
       if (!this.ctx) this.init();
       if (!this.ctx) return;
       if (this.ctx.state === 'suspended') this.ctx.resume();
-
+      
       const now = this.ctx.currentTime;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.connect(gain);
       gain.connect(this.ctx.destination);
-
+      
       osc.type = 'sine';
       osc.frequency.setValueAtTime(523.25, now); // C5
       osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
       osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
-
+      
       gain.gain.setValueAtTime(0.08, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-
+      
       osc.start(now);
       osc.stop(now + 0.35);
     } catch (e) {
       console.warn("Sound play success failed:", e);
     }
   }
-
+  
   static playAlert() {
     try {
       if (!this.ctx) this.init();
       if (!this.ctx) return;
       if (this.ctx.state === 'suspended') this.ctx.resume();
-
+      
       const now = this.ctx.currentTime;
       for (let i = 0; i < 3; i++) {
         const osc = this.ctx.createOscillator();
@@ -63,26 +63,26 @@ class SoundEffects {
       console.warn("Sound play alert failed:", e);
     }
   }
-
+  
   static playCancel() {
     try {
       if (!this.ctx) this.init();
       if (!this.ctx) return;
       if (this.ctx.state === 'suspended') this.ctx.resume();
-
+      
       const now = this.ctx.currentTime;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.connect(gain);
       gain.connect(this.ctx.destination);
-
+      
       osc.type = 'sine';
       osc.frequency.setValueAtTime(329.63, now); // E4
       osc.frequency.exponentialRampToValueAtTime(164.81, now + 0.2); // E3
-
+      
       gain.gain.setValueAtTime(0.08, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-
+      
       osc.start(now);
       osc.stop(now + 0.2);
     } catch (e) {
@@ -155,29 +155,26 @@ function initApp() {
   initChart();
   startLiveClock();
   // startLatencySimulator();
-
+  
   // New features initializers
   initHistoryExporter();
-  initWeb3Deposit();
-  initWeb3Withdraw();
-  initAdminPanel();
-
+  
   // Initialize drawing toolbar collapsible drawer
   const collapseBtn = document.getElementById('drawing-toolbar-collapse-btn');
   const drawingToolbar = document.getElementById('drawing-toolbar');
   const chartWrapper = document.querySelector('.chart-wrapper');
-
+  
   if (collapseBtn && drawingToolbar && chartWrapper) {
     if (window.innerWidth <= 768) {
       drawingToolbar.classList.add('collapsed');
       chartWrapper.classList.add('toolbar-collapsed');
     }
-
+    
     collapseBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       drawingToolbar.classList.toggle('collapsed');
       chartWrapper.classList.toggle('toolbar-collapsed');
-
+      
       if (chart) {
         const container = document.getElementById('chart-container');
         if (container) {
@@ -195,7 +192,7 @@ function initApp() {
 
   // Initialize Google Login
   initGoogleAuth();
-
+  
   // Instruments, Alerts & Settings sidebar panel bindings
   const instrumentsBtn = document.getElementById('sidebar-btn-instruments');
   const instrumentsPanel = document.getElementById('instruments-sidebar-panel');
@@ -309,12 +306,12 @@ function initApp() {
       isPickingAlertPrice = !isPickingAlertPrice;
       isPickingTp = false;
       isPickingSl = false;
-
+      
       const tpPicker = document.getElementById('tp-chart-picker');
       const slPicker = document.getElementById('sl-chart-picker');
       if (tpPicker) tpPicker.classList.remove('picking');
       if (slPicker) slPicker.classList.remove('picking');
-
+      
       const chartContainer = document.getElementById('chart-container');
       if (isPickingAlertPrice) {
         alertPickerBtn.classList.add('alert-picker-active');
@@ -339,7 +336,7 @@ function initApp() {
       if (volumeSeries) {
         volumeSeries.applyOptions({ visible: isVolumeVisible });
       }
-
+      
       let saved = null;
       try {
         saved = localStorage.getItem('bitstar_chart_layout');
@@ -350,7 +347,7 @@ function initApp() {
       if (saved) {
         try {
           layout = JSON.parse(saved);
-        } catch (err) { }
+        } catch (err) {}
       }
       layout.volumeVisible = isVolumeVisible;
       try {
@@ -358,7 +355,7 @@ function initApp() {
       } catch (err) {
         console.warn("Failed to write layout to localStorage:", err);
       }
-
+      
       showToast('info', 'Settings Updated', `Volume display turned ${isVolumeVisible ? 'ON' : 'OFF'}.`);
     });
   }
@@ -508,11 +505,11 @@ function initPortfolioTabs() {
   tabs.forEach(tab => {
     tab.addEventListener('click', (e) => {
       const targetTab = e.currentTarget.getAttribute('data-tab');
-
+      
       // Update tab buttons active state
       tabs.forEach(t => t.classList.remove('active'));
       e.currentTarget.classList.add('active');
-
+      
       // Update tab contents active state
       const contentItems = document.querySelectorAll('.portfolio-tab-content-item');
       contentItems.forEach(item => {
@@ -525,7 +522,7 @@ function initPortfolioTabs() {
           item.style.display = 'none';
         }
       });
-
+      
       // Auto expand portfolio panel if it was collapsed when clicking a tab
       const portfolioPanel = document.querySelector('.bottom-portfolio-panel');
       if (portfolioPanel && portfolioPanel.classList.contains('collapsed')) {
@@ -566,7 +563,7 @@ function handleCloseTab(tabElement) {
   const wasActive = tabElement.classList.contains('active');
   const tabs = Array.from(document.querySelectorAll('.asset-tab'));
   const index = tabs.indexOf(tabElement);
-
+  
   let siblingTab = null;
   if (index !== -1) {
     if (index < tabs.length - 1) {
@@ -593,13 +590,13 @@ function handleCloseTab(tabElement) {
 function updateWorkspaceState() {
   const tabs = document.querySelectorAll('.asset-tab');
   const hasTabs = tabs.length > 0;
-
+  
   const noTabsOverlay = document.getElementById('no-tabs-overlay');
   const rightWorkspace = document.querySelector('.right-workspace');
   const titleBar = rightWorkspace.querySelector('.terminal-title-bar');
   const panelForm = rightWorkspace.querySelector('.panel-form');
   const placeholder = rightWorkspace.querySelector('.no-symbol-placeholder');
-
+  
   if (hasTabs) {
     if (noTabsOverlay) noTabsOverlay.classList.add('hidden');
     if (titleBar) titleBar.classList.remove('hidden');
@@ -611,13 +608,13 @@ function updateWorkspaceState() {
     if (titleBar) titleBar.classList.add('hidden');
     if (panelForm) panelForm.classList.add('hidden');
     if (placeholder) placeholder.classList.remove('hidden');
-
+    
     // Clear metrics inside the chart info bar
     const chartInfoSymbol = document.getElementById('chart-info-symbol');
     const chartInfoMetrics = document.getElementById('chart-info-metrics');
     if (chartInfoSymbol) chartInfoSymbol.innerHTML = `<span style="font-weight: 700; color: var(--text-secondary);">No Active Asset</span>`;
     if (chartInfoMetrics) chartInfoMetrics.innerHTML = '';
-
+    
     // Clear chart series
     reloadChartData();
   }
@@ -668,7 +665,7 @@ function switchAsset(symbol, tabElement) {
     return;
   }
   activeSymbol = symbol;
-
+  
   // Toggle active tab class
   document.querySelectorAll('.asset-tab').forEach(t => t.classList.remove('active'));
   tabElement.classList.add('active');
@@ -687,9 +684,9 @@ function switchAsset(symbol, tabElement) {
   }
 
   // Reset Form
-  lotSizeValue = 0.01;
+  lotSizeValue = 1.00;
   document.getElementById('order-volume-input').value = lotSizeValue.toFixed(2);
-
+  
   // Reset TP and SL inputs
   document.getElementById('tp-price-input').value = '';
   document.getElementById('sl-price-input').value = '';
@@ -767,8 +764,6 @@ function getPipSize(symbol) {
 // ----------------------------------------------------
 // Chart Setup
 // ----------------------------------------------------
-let _chartResizeObserver = null; // module-level reference to disconnect on re-init
-
 function initChart() {
   const container = document.getElementById('chart-container');
   if (!container) return;
@@ -896,7 +891,7 @@ function initChart() {
   volumeSeries = chart.addSeries(HistogramSeries, {
     color: '#19202e',
     priceFormat: { type: 'volume' },
-    priceScaleId: '',
+    priceScaleId: '', 
     scaleMargins: { top: 0.82, bottom: 0 },
     priceLineVisible: false,
     lastValueVisible: false,
@@ -912,13 +907,7 @@ function initChart() {
   loadSavedLayout();
   reloadChartData();
 
-  // Disconnect any previous ResizeObserver before creating a new one
-  if (_chartResizeObserver) {
-    _chartResizeObserver.disconnect();
-    _chartResizeObserver = null;
-  }
-
-  _chartResizeObserver = new ResizeObserver(entries => {
+  const resizeObserver = new ResizeObserver(entries => {
     if (entries.length === 0) return;
     const { width, height } = entries[0].contentRect;
     if (width > 0 && height > 0) {
@@ -933,7 +922,7 @@ function initChart() {
       });
     }
   });
-  _chartResizeObserver.observe(container);
+  resizeObserver.observe(container);
 
   // Bind chart navigation overlay controls
   const zoomInBtn = document.getElementById('chart-nav-zoom-in');
@@ -1026,10 +1015,10 @@ function initChart() {
   // Subscribe to clicks on chart for picking TP/SL price and drawing tools
   chart.subscribeClick((param) => {
     if (!param || !param.point) return;
-
+    
     const activeSeries = getActiveSeries();
     if (!activeSeries) return;
-
+    
     let price = activeSeries.coordinateToPrice(param.point.y);
     if (!price) return;
 
@@ -1048,7 +1037,7 @@ function initChart() {
       showToast('success', 'Take Profit Set', `TP price set to ${formattedPrice} from chart.`);
       return;
     }
-
+    
     // Handle SL picking
     if (isPickingSl) {
       document.getElementById('sl-price-input').value = formattedPrice;
@@ -1157,7 +1146,7 @@ function initChart() {
           time: param.time,
           price: price
         };
-
+        
         if (activeDrawingTool === 'zoom') {
           // Zoom in
           const timeScale = chart.timeScale();
@@ -1178,7 +1167,7 @@ function initChart() {
             start: { time: drawingStartPoint.time, price: drawingStartPoint.price },
             end: endPoint
           });
-
+          
           const toolNameMap = {
             trendline: 'Trend Line',
             channel: 'Parallel Channel',
@@ -1189,11 +1178,11 @@ function initChart() {
           };
           showToast('success', 'Drawing Created', `${toolNameMap[activeDrawingTool] || activeDrawingTool} added to chart.`);
         }
-
+        
         // Reset states
         const prevTool = activeDrawingTool;
         drawingStartPoint = null;
-
+        
         if (!isStayInDrawingMode) {
           setDrawingTool(null, document.getElementById('draw-btn-crosshair'));
         } else {
@@ -1208,7 +1197,7 @@ function initChart() {
           };
           showToast('info', 'Drawing Mode Active', `Click on the chart to start drawing another ${toolNameMap[prevTool] || prevTool}.`);
         }
-
+        
         drawCanvas();
       }
     }
@@ -1217,10 +1206,10 @@ function initChart() {
   // Subscribe to crosshair move for drawing preview
   chart.subscribeCrosshairMove((param) => {
     if (!param || !param.point) return;
-
+    
     const activeSeries = getActiveSeries();
     if (!activeSeries) return;
-
+    
     let price = activeSeries.coordinateToPrice(param.point.y);
     if (!price) return;
 
@@ -1242,14 +1231,14 @@ function initChart() {
         price = closestPrice;
       }
     }
-
+    
     currentHoverPoint = {
       time: param.time,
       price: price,
       x: param.point.x,
       y: param.point.y
     };
-
+    
     if (drawingStartPoint) {
       drawCanvas();
     }
@@ -1272,7 +1261,7 @@ function reloadChartData() {
     areaSeries.setData([]);
     barSeries.setData([]);
     volumeSeries.setData([]);
-
+    
     candlestickSeries.applyOptions({ priceLineVisible: false, lastValueVisible: false });
     areaSeries.applyOptions({ priceLineVisible: false, lastValueVisible: false });
     barSeries.applyOptions({ priceLineVisible: false, lastValueVisible: false });
@@ -1286,7 +1275,7 @@ function reloadChartData() {
   }
 
   const keySymbol = getMappedSymbol();
-
+  
   // Set correct price precision for the active asset series on the chart scale to prevent clipping
   const coin = marketEngine.coins[keySymbol];
   if (coin) {
@@ -1298,7 +1287,7 @@ function reloadChartData() {
     precision: precision,
     minMove: 1 / Math.pow(10, precision)
   };
-
+  
   candlestickSeries.applyOptions({ priceFormat: priceFormatOpts });
   areaSeries.applyOptions({ priceFormat: priceFormatOpts });
   barSeries.applyOptions({ priceFormat: priceFormatOpts });
@@ -1309,21 +1298,8 @@ function reloadChartData() {
   if (loader) {
     if (history.length === 0) {
       loader.classList.remove('hidden');
-      const textSpan = loader.querySelector('span');
-      const spinner = loader.querySelector('.spinner');
-      if (coin && coin.fetchedTimeframes && coin.fetchedTimeframes[activeTimeframe] === true) {
-        if (textSpan) textSpan.textContent = `No real-time chart data available for ${activeSymbol}.`;
-        if (spinner) spinner.style.display = 'none';
-      } else {
-        if (textSpan) textSpan.textContent = 'Loading Bitstar Chart Terminal...';
-        if (spinner) spinner.style.display = '';
-      }
     } else {
       loader.classList.add('hidden');
-      const textSpan = loader.querySelector('span');
-      const spinner = loader.querySelector('.spinner');
-      if (textSpan) textSpan.textContent = 'Loading Bitstar Chart Terminal...';
-      if (spinner) spinner.style.display = '';
     }
   }
 
@@ -1368,13 +1344,13 @@ function initTimeframes() {
   const container = document.querySelector('.timeframe-select-container');
   const dropdown = document.getElementById('timeframe-dropdown-menu');
   const label = document.getElementById('timeframe-label');
-
+  
   if (container && dropdown) {
     container.addEventListener('click', (e) => {
       e.stopPropagation();
       dropdown.classList.toggle('hidden');
     });
-
+    
     document.addEventListener('click', () => {
       dropdown.classList.add('hidden');
     });
@@ -1395,13 +1371,13 @@ function initTimeframes() {
 
   const customTfInput = document.getElementById('custom-tf-minutes');
   const customTfApply = document.getElementById('custom-tf-apply-btn');
-
+  
   if (customTfInput && customTfApply) {
     customTfApply.addEventListener('click', (e) => {
       e.stopPropagation();
       const val = parseInt(customTfInput.value);
       if (isNaN(val) || val <= 0) return;
-
+      
       // Check if this option already exists
       let existingOpt = dropdown.querySelector(`.tf-option[data-tf="${val}"]`);
       if (!existingOpt) {
@@ -1410,11 +1386,11 @@ function initTimeframes() {
         newOpt.className = 'tf-option font-mono';
         newOpt.setAttribute('data-tf', val.toString());
         newOpt.textContent = val >= 60 ? (val % 60 === 0 ? `${val / 60}h` : `${val}m`) : `${val}m`;
-
+        
         // Insert before the custom input container
         const inputContainer = dropdown.querySelector('.custom-tf-input-container');
         dropdown.insertBefore(newOpt, inputContainer);
-
+        
         // Attach click listener
         newOpt.addEventListener('click', (ev) => {
           ev.stopPropagation();
@@ -1426,10 +1402,10 @@ function initTimeframes() {
           dropdown.classList.add('hidden');
           reloadChartData();
         });
-
+        
         existingOpt = newOpt;
       }
-
+      
       // Trigger click on it to select it automatically
       existingOpt.click();
       customTfInput.value = '';
@@ -1442,17 +1418,17 @@ function initTimeframes() {
     btn.addEventListener('click', (e) => {
       rangeBtns.forEach(b => b.classList.remove('active'));
       e.target.classList.add('active');
-
+      
       const range = e.target.getAttribute('data-tf');
       let mappedTf = 15;
       if (range === '1d') mappedTf = 5;
       else if (range === '5d') mappedTf = 15;
       else if (range === '1m' || range === '3m') mappedTf = 60;
       else mappedTf = 1440; // 6m, 1y, 5y
-
+      
       activeTimeframe = mappedTf;
       label.textContent = mappedTf >= 60 ? (mappedTf === 1440 ? '1d' : '1h') : mappedTf + 'm';
-
+      
       // Update active state in timeframe dropdown options
       options.forEach(o => {
         if (parseInt(o.getAttribute('data-tf')) === mappedTf) {
@@ -1461,7 +1437,7 @@ function initTimeframes() {
           o.classList.remove('active');
         }
       });
-
+      
       reloadChartData();
     });
   });
@@ -1480,7 +1456,7 @@ function startLiveClock() {
 function startLatencySimulator() {
   const latencyEl = document.querySelector('#latency-indicator span');
   if (!latencyEl) return;
-
+  
   async function updateRealLatency() {
     try {
       const start = performance.now();
@@ -1520,16 +1496,16 @@ function startLatencySimulator() {
 function initTradingForm() {
   const sellTriggerBox = document.getElementById('action-sell-trigger');
   const buyTriggerBox = document.getElementById('action-buy-trigger');
-
+  
   const execMarketBtn = document.getElementById('exec-tab-market');
   const execPendingBtn = document.getElementById('exec-tab-pending');
   const executeBtn = document.getElementById('execute-btn');
-
+  
   const pendingPriceGroup = document.getElementById('pending-price-group');
   const pendingPriceInput = document.getElementById('pending-price-input');
-
+  
   const volumeInput = document.getElementById('order-volume-input');
-
+  
   // On load, confirm button is hidden and neither is active
   isBuyActive = null;
   if (sellTriggerBox) sellTriggerBox.classList.remove('active');
@@ -1616,7 +1592,7 @@ function initTradingForm() {
     execPendingBtn.classList.add('active');
     execMarketBtn.classList.remove('active');
     pendingPriceGroup.classList.remove('hidden');
-
+    
     if (!pendingPriceInput.value) {
       const coin = marketEngine.coins[getMappedSymbol()];
       pendingPriceInput.value = coin.currentPrice.toFixed(coin.decimalPlaces);
@@ -1654,7 +1630,7 @@ function initTradingForm() {
     isPickingTp = !isPickingTp;
     isPickingSl = false; // reset SL
     slPicker.classList.remove('picking');
-
+    
     if (isPickingTp) {
       tpPicker.classList.add('picking');
       showToast('info', 'TP Level Selection', 'Click on the chart to set your Take Profit price.');
@@ -1670,7 +1646,7 @@ function initTradingForm() {
     isPickingSl = !isPickingSl;
     isPickingTp = false; // reset TP
     tpPicker.classList.remove('picking');
-
+    
     if (isPickingSl) {
       slPicker.classList.add('picking');
       showToast('info', 'SL Level Selection', 'Click on the chart to set your Stop Loss price.');
@@ -1689,7 +1665,7 @@ function initTradingForm() {
     buyTriggerBox.classList.remove('active');
     executeUpdateButtonUI();
     showToast('info', 'Order Cancelled', 'Trade submission aborted.');
-
+    
     // Hide trading terminal right panel
     const rightWorkspacePanel = document.querySelector('.right-workspace');
     if (rightWorkspacePanel) {
@@ -1726,7 +1702,7 @@ function initTradingForm() {
 
 function switchFormMode(mode) {
   currentFormMode = mode;
-
+  
   const riskCalcGroup = document.getElementById('risk-calc-group');
   if (mode === 'riskcalc') {
     if (riskCalcGroup) riskCalcGroup.classList.remove('hidden');
@@ -1861,7 +1837,7 @@ function executeUpdateButtonUI() {
   const btn = document.getElementById('execute-btn');
   const container = document.getElementById('execution-actions-container');
   const statsSummary = document.getElementById('terminal-stats-summary');
-
+  
   const tickerContainer = document.querySelector('.buy-sell-tickers-container');
   if (tickerContainer) {
     if (isBuyActive !== null) {
@@ -1876,13 +1852,13 @@ function executeUpdateButtonUI() {
     if (statsSummary) statsSummary.classList.add('hidden');
     return;
   }
-
+  
   if (container) container.classList.remove('hidden');
   if (statsSummary) statsSummary.classList.remove('hidden');
-
+  
   const action = isBuyActive ? 'Buy' : 'Sell';
   btn.textContent = `Confirm ${action} ${lotSizeValue.toFixed(2)} lots`;
-
+  
   if (isBuyActive) {
     btn.className = 'bitstar-confirm-btn buy';
   } else {
@@ -1896,8 +1872,8 @@ function updateOrderCalculations() {
   const coin = marketEngine.coins[keySymbol];
   if (!coin) return;
 
-  const price = currentOrderType === 'LIMIT' ?
-    parseFloat(document.getElementById('pending-price-input').value) || coin.currentPrice :
+  const price = currentOrderType === 'LIMIT' ? 
+    parseFloat(document.getElementById('pending-price-input').value) || coin.currentPrice : 
     coin.currentPrice;
 
   // If risk calculator is active, automatically calculate the lot size before proceeding
@@ -1905,7 +1881,7 @@ function updateOrderCalculations() {
     const riskPercent = parseFloat(document.getElementById('risk-percentage-input').value) || 1.0;
     const balance = tradingEngine.balance || 10000.00;
     const riskUsd = balance * (riskPercent / 100);
-
+    
     // Update Risk Amount display
     const riskAmountDisplay = document.getElementById('risk-amount-display');
     if (riskAmountDisplay) {
@@ -1919,10 +1895,10 @@ function updateOrderCalculations() {
         const lotMultiplier = getLotMultiplier();
         const lossPerLot = priceDiff * lotMultiplier;
         let calculatedLots = riskUsd / lossPerLot;
-
+        
         // Cap calculated lots to max 100 and min 0.01
         calculatedLots = Math.max(0.01, Math.min(100.0, calculatedLots));
-
+        
         lotSizeValue = calculatedLots;
         const volInput = document.getElementById('order-volume-input');
         if (volInput) {
@@ -1940,11 +1916,11 @@ function updateOrderCalculations() {
   const lotMultiplier = getLotMultiplier();
   const cryptoVolume = lotSizeValue * lotMultiplier;
   const contractValue = cryptoVolume * price;
-
+  
   // Bitstar standard default leverage: 1:400
   const leverageVal = 400;
   const marginRequired = contractValue / leverageVal;
-
+  
   // Exness standard account spread cost representation
   const spreadDiff = getSpread(activeSymbol, coin.currentPrice);
   const fee = spreadDiff * (lotSizeValue * getLotMultiplier());
@@ -1966,9 +1942,9 @@ function updateOrderCalculations() {
     const usd = isBuyActive ? diff * cryptoVolume : -diff * cryptoVolume;
     const pips = (isBuyActive ? diff : -diff) / getPipSize(activeSymbol);
     const pct = (usd / equity) * 100;
-
+    
     tpMetrics.classList.remove('hidden');
-    tpMetrics.textContent = `${usd >= 0 ? '+' : ''}${pips.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} pips | ${usd >= 0 ? '+' : ''}${usd.toFixed(2)} USD | ${usd >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+    tpMetrics.textContent = `${usd >= 0 ? '+' : ''}${pips.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} pips | ${usd >= 0 ? '+' : ''}${usd.toFixed(2)} USD | ${usd >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
     tpMetrics.className = `tp-sl-metrics ${usd >= 0 ? 'profit' : 'loss'}`;
   } else {
     tpMetrics.classList.add('hidden');
@@ -1981,9 +1957,9 @@ function updateOrderCalculations() {
     const usd = isBuyActive ? diff * cryptoVolume : -diff * cryptoVolume;
     const pips = (isBuyActive ? diff : -diff) / getPipSize(activeSymbol);
     const pct = (usd / equity) * 100;
-
+    
     slMetrics.classList.remove('hidden');
-    slMetrics.textContent = `${usd >= 0 ? '+' : ''}${pips.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} pips | ${usd >= 0 ? '+' : ''}${usd.toFixed(2)} USD | ${usd >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+    slMetrics.textContent = `${usd >= 0 ? '+' : ''}${pips.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} pips | ${usd >= 0 ? '+' : ''}${usd.toFixed(2)} USD | ${usd >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
     slMetrics.className = `tp-sl-metrics ${usd >= 0 ? 'profit' : 'loss'}`;
   } else {
     slMetrics.classList.add('hidden');
@@ -2004,8 +1980,8 @@ function handleExecuteOrder() {
   const sellPrice = coin.currentPrice - (spreadDiff / 2);
   const buyPrice = coin.currentPrice + (spreadDiff / 2);
 
-  const price = currentOrderType === 'LIMIT' ?
-    parseFloat(document.getElementById('pending-price-input').value) || 0 :
+  const price = currentOrderType === 'LIMIT' ? 
+    parseFloat(document.getElementById('pending-price-input').value) || 0 : 
     (isBuyActive ? buyPrice : sellPrice);
 
   if (currentOrderType === 'LIMIT' && price <= 0) {
@@ -2049,7 +2025,7 @@ function handleExecuteOrder() {
     document.getElementById('tp-price-input').value = '';
     document.getElementById('sl-price-input').value = '';
     clearTempPriceLines();
-
+    
     // Reset form to neutral state
     isBuyActive = null;
     document.getElementById('action-sell-trigger').classList.remove('active');
@@ -2107,25 +2083,25 @@ function renderAlertsList() {
     activeAlerts.forEach((alert, index) => {
       const item = document.createElement('div');
       item.className = 'alert-item';
-
+      
       const left = document.createElement('div');
       left.className = 'alert-item-left';
-
+      
       const symbol = document.createElement('div');
       symbol.className = 'alert-item-symbol';
       symbol.textContent = alert.symbol;
-
+      
       const condition = document.createElement('div');
       const isAbove = alert.condition === 'above';
       condition.className = `alert-item-condition ${isAbove ? 'above' : 'below'}`;
       condition.textContent = `${isAbove ? 'Rises above (≥)' : 'Falls below (≤)'} ${alert.price.toFixed(marketEngine.coins[alert.symbol]?.decimalPlaces || 2)}`;
-
+      
       left.appendChild(symbol);
       left.appendChild(condition);
-
+      
       const right = document.createElement('div');
       right.className = 'alert-item-right';
-
+      
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'alert-delete-btn';
       deleteBtn.innerHTML = '×';
@@ -2137,9 +2113,9 @@ function renderAlertsList() {
         updateChartPriceLines(tradingEngine.positions, tradingEngine.pendingOrders);
         showToast('info', 'Alert Deleted', `Alert for ${alert.symbol} removed.`);
       });
-
+      
       right.appendChild(deleteBtn);
-
+      
       item.appendChild(left);
       item.appendChild(right);
       activeList.appendChild(item);
@@ -2158,16 +2134,16 @@ function renderAlertsList() {
       item.style.borderBottom = '1px solid rgba(255, 255, 255, 0.02)';
       item.style.display = 'flex';
       item.style.justifyContent = 'space-between';
-
-      const timeStr = new Date(alert.triggeredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      
+      const timeStr = new Date(alert.triggeredAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
       const text = document.createElement('span');
       text.textContent = `${alert.symbol} reached ${alert.price} (${alert.condition === 'above' ? '≥' : '≤'})`;
-
+      
       const time = document.createElement('span');
       time.style.color = 'var(--text-muted)';
       time.style.fontSize = '9px';
       time.textContent = timeStr;
-
+      
       item.appendChild(text);
       item.appendChild(time);
       triggeredList.appendChild(item);
@@ -2178,7 +2154,7 @@ function renderAlertsList() {
 function populateAlertSymbolSelect() {
   const select = document.getElementById('alert-symbol-select');
   if (!select) return;
-
+  
   select.innerHTML = '';
   Object.keys(marketEngine.coins).forEach(sym => {
     const opt = document.createElement('option');
@@ -2195,18 +2171,18 @@ function handleCreateAlert() {
   const symbolSelect = document.getElementById('alert-symbol-select');
   const conditionSelect = document.getElementById('alert-condition-select');
   const priceInput = document.getElementById('alert-price-input');
-
+  
   if (!symbolSelect || !conditionSelect || !priceInput) return;
-
+  
   const symbol = symbolSelect.value;
   const condition = conditionSelect.value;
   const price = parseFloat(priceInput.value);
-
+  
   if (isNaN(price) || price <= 0) {
     showToast('error', 'Invalid Price', 'Please enter a valid trigger price.');
     return;
   }
-
+  
   const newAlert = {
     id: 'alt_' + Math.random().toString(36).substring(2, 11),
     symbol,
@@ -2214,26 +2190,26 @@ function handleCreateAlert() {
     price,
     createdAt: Date.now()
   };
-
+  
   activeAlerts.push(newAlert);
   saveAlerts();
   renderAlertsList();
   updateChartPriceLines(tradingEngine.positions, tradingEngine.pendingOrders);
-
+  
   priceInput.value = '';
   showToast('success', 'Alert Created', `Alert set for ${symbol} at ${price}`);
 }
 
 function checkPriceAlerts(coins) {
   let alertsTriggered = false;
-
+  
   activeAlerts = activeAlerts.filter(alert => {
     const coin = coins[alert.symbol];
     if (!coin) return true;
-
+    
     const currentPrice = coin.currentPrice;
     let triggered = false;
-
+    
     if (alert.condition === 'above') {
       if (currentPrice >= alert.price) {
         triggered = true;
@@ -2243,29 +2219,29 @@ function checkPriceAlerts(coins) {
         triggered = true;
       }
     }
-
+    
     if (triggered) {
       alertsTriggered = true;
       playAlertSound();
       showToast('success', 'Price Alert Triggered', `${alert.symbol} reached ${alert.price} (Current: ${currentPrice.toFixed(coin.decimalPlaces)})`);
-
+      
       triggeredAlerts.unshift({
         symbol: alert.symbol,
         condition: alert.condition,
         price: alert.price,
         triggeredAt: Date.now()
       });
-
+      
       if (triggeredAlerts.length > 20) {
         triggeredAlerts.pop();
       }
-
+      
       return false;
     }
-
+    
     return true;
   });
-
+  
   if (alertsTriggered) {
     saveAlerts();
     renderAlertsList();
@@ -2308,7 +2284,7 @@ function handleMarketTick(coins) {
   // Update title dynamically to match active symbol name and timeframe
   const tfVal = activeTimeframe >= 60 ? (activeTimeframe === 1440 ? 'D' : '1H') : activeTimeframe;
   document.getElementById('chart-info-symbol').innerHTML = `<span style="font-weight: 700; color: #fff;">${activeSymbol}</span> <span style="color: var(--text-secondary); margin-left: 4px; font-weight: 700;">${tfVal}</span>`;
-
+  
   const dotColor = isUp ? '#00c076' : '#ff4d4d';
   const metricsHtml = `<span style="color: ${dotColor}; margin-right: 4px; vertical-align: middle; font-size: 8px;">●</span>` +
     `O${(lastHistory && lastHistory.length > 0 ? lastHistory[lastHistory.length - 1].open : currentPrice).toFixed(dec)} ` +
@@ -2341,38 +2317,29 @@ function handleMarketTick(coins) {
   const buyEl = document.getElementById('buy-price-display');
   if (sellEl) sellEl.innerHTML = formatTickerText(sellPrice);
   if (buyEl) buyEl.innerHTML = formatTickerText(buyPrice);
-
+  
   // Spread text (converted via asset-specific pip size)
   const pipsVal = spreadDiff / getPipSize(activeSymbol);
   const spreadEl = document.getElementById('spread-diff-val');
   if (spreadEl) spreadEl.innerHTML = `${pipsVal.toFixed(1)} pips <span style="font-size: 8px; margin-left: 2px; color: var(--text-secondary);">▾</span>`;
 
-  // Update Chart real-time ticking (all 3 series types must be updated)
+  // Update Chart real-time ticking
   if (candlestickSeries && volumeSeries) {
     const history = activeCoin.history[activeTimeframe];
     if (history && history.length > 0) {
       const last = history[history.length - 1];
-      const candleUpdate = {
+      candlestickSeries.update({
         time: last.time,
         open: last.open,
         high: last.high,
         low: last.low,
         close: last.close
-      };
-      const volumeUpdate = {
+      });
+      volumeSeries.update({
         time: last.time,
         value: last.volume,
         color: last.close >= last.open ? 'rgba(16, 128, 255, 0.12)' : 'rgba(226, 82, 65, 0.12)'
-      };
-      // Always update all series so switching chart type doesn't freeze the last candle
-      try { candlestickSeries.update(candleUpdate); } catch (e) { }
-      if (areaSeries) {
-        try { areaSeries.update({ time: last.time, value: last.close }); } catch (e) { }
-      }
-      if (barSeries) {
-        try { barSeries.update(candleUpdate); } catch (e) { }
-      }
-      volumeSeries.update(volumeUpdate);
+      });
     }
   }
 
@@ -2408,7 +2375,7 @@ function handleTradingTick(engine) {
       }
     } else {
       // Connecting / Syncing (Purple)
-      latencyIndicator.style.color = '#b388ff';
+      latencyIndicator.style.color = '#b388ff'; 
       if (latencySvg) {
         // Animate signal bars sequentially
         const rects = latencySvg.querySelectorAll('rect');
@@ -2454,7 +2421,7 @@ function handleTradingTick(engine) {
   document.getElementById('free-margin-display-val').textContent = displayFreeMargin;
   document.getElementById('balance-display-val').textContent = displayBalance;
   document.getElementById('margin-display-val').textContent = displayMargin;
-
+  
   const lvlDisplay = document.getElementById('margin-level-display-val');
   if (engine.marginLevel === null) {
     lvlDisplay.textContent = '0.00%';
@@ -2503,10 +2470,10 @@ function handleTradingTick(engine) {
 
   // Render closed history table
   renderHistoryTable(engine.history);
-
+  
   // Update chart price lines for open positions and pending orders
   updateChartPriceLines(engine.positions, engine.pendingOrders);
-
+  
   // Update calculations
   updateOrderCalculations();
 }
@@ -2516,44 +2483,44 @@ function handleTradingTick(engine) {
 // ----------------------------------------------------
 function getMarketCloseTimeStr(symbol) {
   if (symbol.startsWith('BTC')) return '24/7';
-
+  
   const now = new Date();
   const utcDay = now.getUTCDay();
   const utcHours = now.getUTCHours();
   const utcMinutes = now.getUTCMinutes();
-
+  
   let daysLeft = 5 - utcDay;
   if (daysLeft < 0 || (daysLeft === 0 && utcHours >= 21)) {
     daysLeft += 7;
   }
-
+  
   let totalHours = daysLeft * 24 + (21 - utcHours);
   if (totalHours < 0) {
     totalHours += 168;
   }
-
+  
   const days = Math.floor(totalHours / 24);
   const hours = totalHours % 24;
   const minutes = (60 - utcMinutes) % 60;
-
+  
   return `${days}d ${hours}h ${minutes}m`;
 }
 
 function formatBitstarDateTime(timestamp) {
   if (!timestamp) return '-';
   const date = new Date(timestamp);
-
+  
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
+  
   const dayName = days[date.getDay()];
   const dayVal = date.getDate();
   const monthName = months[date.getMonth()];
   const yearShort = date.getFullYear().toString().substr(-2);
-
+  
   const hrs = date.getHours().toString().padStart(2, '0');
   const mins = date.getMinutes().toString().padStart(2, '0');
-
+  
   return `${dayName} ${dayVal} ${monthName} '${yearShort} ${hrs}:${mins}`;
 }
 
@@ -2954,7 +2921,7 @@ function updateChartPriceLines(positions, pendingOrders) {
   if (typeof activeAlerts !== 'undefined') {
     activeAlerts.forEach(alert => {
       if (alert.symbol !== currentMapped) return;
-
+      
       const condSymbol = alert.condition === 'above' ? '≥' : '≤';
       const alertLine = candlestickSeries.createPriceLine({
         price: alert.price,
@@ -3024,7 +2991,7 @@ function showChartContextMenu(x, y, price) {
     item.style.alignItems = 'center';
     item.style.gap = '8px';
     item.style.transition = 'all 0.1s ease';
-
+    
     // Dot indicator
     const dot = document.createElement('span');
     dot.style.display = 'inline-block';
@@ -3040,7 +3007,7 @@ function showChartContextMenu(x, y, price) {
     } else {
       dot.style.background = 'var(--text-secondary)';
     }
-
+    
     item.appendChild(dot);
     const label = document.createElement('span');
     label.textContent = text;
@@ -3051,7 +3018,7 @@ function showChartContextMenu(x, y, price) {
       onClick();
       menu.remove();
     });
-
+    
     item.onmouseenter = () => { item.style.backgroundColor = 'rgba(255,255,255,0.06)'; };
     item.onmouseleave = () => { item.style.backgroundColor = 'transparent'; };
 
@@ -3122,7 +3089,7 @@ function showChartContextMenu(x, y, price) {
     openPositions.forEach(pos => {
       const posLots = pos.volume / getLotMultiplier();
       const posLabel = `${pos.type} ${posLots.toFixed(2)} Lot`;
-
+      
       menu.appendChild(createMenuItem(`Set TP for ${posLabel}`, () => {
         tradingEngine.modifyPositionSLTP(pos.id, undefined, price);
         showToast('success', 'Position TP Set', `Position TP updated to ${price}`);
@@ -3156,7 +3123,7 @@ function updateTempTpLine(price) {
   if (tempTpLine) {
     try {
       candlestickSeries.removePriceLine(tempTpLine);
-    } catch (e) { }
+    } catch (e) {}
     tempTpLine = null;
   }
   if (price) {
@@ -3176,7 +3143,7 @@ function updateTempSlLine(price) {
   if (tempSlLine) {
     try {
       candlestickSeries.removePriceLine(tempSlLine);
-    } catch (e) { }
+    } catch (e) {}
     tempSlLine = null;
   }
   if (price) {
@@ -3196,13 +3163,13 @@ function clearTempPriceLines() {
   if (tempTpLine) {
     try {
       candlestickSeries.removePriceLine(tempTpLine);
-    } catch (e) { }
+    } catch (e) {}
     tempTpLine = null;
   }
   if (tempSlLine) {
     try {
       candlestickSeries.removePriceLine(tempSlLine);
-    } catch (e) { }
+    } catch (e) {}
     tempSlLine = null;
   }
 }
@@ -3215,14 +3182,14 @@ function calculateEMA(data, period) {
   if (data.length === 0) return ema;
 
   const multiplier = 2 / (period + 1);
-
+  
   let sum = 0;
   const initRange = Math.min(period, data.length);
   for (let i = 0; i < initRange; i++) {
     sum += data[i].close;
   }
   let prevEma = sum / initRange;
-
+  
   ema.push({ time: data[initRange - 1].time, value: prevEma });
 
   for (let i = initRange; i < data.length; i++) {
@@ -3243,13 +3210,13 @@ function calculateBollingerBands(data, period = 20) {
   for (let i = period - 1; i < data.length; i++) {
     const subset = data.slice(i - period + 1, i + 1);
     const prices = subset.map(d => d.close);
-
+    
     const sum = prices.reduce((a, b) => a + b, 0);
     const mean = sum / period;
-
+    
     const variance = prices.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / period;
     const stdDev = Math.sqrt(variance);
-
+    
     const time = data[i].time;
     basis.push({ time, value: mean });
     upper.push({ time, value: mean + 2 * stdDev });
@@ -3274,7 +3241,7 @@ function getActiveSeries() {
 function drawCanvas() {
   const canvas = document.getElementById('chart-drawing-canvas');
   if (!canvas || !chart) return;
-
+  
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -3289,7 +3256,7 @@ function drawCanvas() {
   drawings.forEach(drawing => {
     const x1 = timeScale.timeToCoordinate(drawing.start.time);
     const y1 = activeSeries.priceToCoordinate(drawing.start.price);
-
+    
     // One-click annotations might not have end coordinates
     const x2 = drawing.end ? timeScale.timeToCoordinate(drawing.end.time) : null;
     const y2 = drawing.end ? activeSeries.priceToCoordinate(drawing.end.price) : null;
@@ -3304,7 +3271,7 @@ function drawCanvas() {
         ctx.font = '500 11px Inter, sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'bottom';
-
+        
         // Measure text for background panel
         const textWidth = ctx.measureText(drawing.text).width;
         ctx.fillStyle = 'rgba(12, 13, 18, 0.85)';
@@ -3341,19 +3308,19 @@ function drawCanvas() {
           const offset = 20; // 20px Y-offset
           ctx.strokeStyle = '#b388ff'; // Lavender/Purple
           ctx.lineWidth = 1.5;
-
+          
           // Boundary 1
           ctx.beginPath();
           ctx.moveTo(x1, y1 - offset);
           ctx.lineTo(x2, y2 - offset);
           ctx.stroke();
-
+          
           // Boundary 2
           ctx.beginPath();
           ctx.moveTo(x1, y1 + offset);
           ctx.lineTo(x2, y2 + offset);
           ctx.stroke();
-
+          
           // Fill inside channel
           ctx.fillStyle = 'rgba(179, 136, 255, 0.05)';
           ctx.beginPath();
@@ -3363,7 +3330,7 @@ function drawCanvas() {
           ctx.lineTo(x1, y1 + offset);
           ctx.closePath();
           ctx.fill();
-
+          
           // Dashed Center line
           ctx.strokeStyle = 'rgba(179, 136, 255, 0.4)';
           ctx.setLineDash([4, 4]);
@@ -3378,7 +3345,7 @@ function drawCanvas() {
           const dy = y2 - y1;
           ctx.strokeStyle = '#bf5af2'; // Purple
           ctx.lineWidth = 1;
-
+          
           const ratios = [
             { rx: 1, ry: 1 },
             { rx: 1, ry: 0.5 },
@@ -3388,7 +3355,7 @@ function drawCanvas() {
             { rx: 0.33, ry: 1 },
             { rx: 0.25, ry: 1 }
           ];
-
+          
           ratios.forEach(r => {
             ctx.beginPath();
             ctx.moveTo(x1, y1);
@@ -3407,7 +3374,7 @@ function drawCanvas() {
             'rgba(191, 90, 242, 0.75)',   // 78.6%
             'rgba(255, 255, 255, 0.75)'   // 100%
           ];
-
+          
           levels.forEach((lvl, idx) => {
             const price = drawing.start.price + (drawing.end.price - drawing.start.price) * lvl;
             const y = activeSeries.priceToCoordinate(price);
@@ -3420,7 +3387,7 @@ function drawCanvas() {
               ctx.lineTo(x2, y);
               ctx.stroke();
               ctx.setLineDash([]);
-
+              
               ctx.fillStyle = colors[idx];
               ctx.font = '9px Inter, sans-serif';
               ctx.fillText(`${(lvl * 100).toFixed(1)}% - ${price.toFixed(dec)}`, x1 + 4, y - 2);
@@ -3448,7 +3415,7 @@ function drawCanvas() {
           // Calculations
           const priceDiff = drawing.end.price - drawing.start.price;
           const pctChange = (priceDiff / drawing.start.price) * 100;
-
+          
           const history = marketEngine.getHistory(keySymbol, activeTimeframe);
           const startIndex = history.findIndex(c => c.time === drawing.start.time);
           const endIndex = history.findIndex(c => c.time === drawing.end.time);
@@ -3456,7 +3423,7 @@ function drawCanvas() {
           const sign = priceDiff >= 0 ? '+' : '';
 
           const text = `${sign}${priceDiff.toFixed(dec)} (${sign}${pctChange.toFixed(2)}%) | ${barsCount} Bars`;
-
+          
           ctx.fillStyle = '#ffffff';
           ctx.font = '700 10px Inter, sans-serif';
           ctx.textAlign = 'center';
@@ -3488,12 +3455,12 @@ function drawCanvas() {
         ctx.strokeStyle = 'rgba(179, 136, 255, 0.6)';
         ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 4]);
-
+        
         ctx.beginPath();
         ctx.moveTo(x1, y1 - offset);
         ctx.lineTo(x2, y2 - offset);
         ctx.stroke();
-
+        
         ctx.beginPath();
         ctx.moveTo(x1, y1 + offset);
         ctx.lineTo(x2, y2 + offset);
@@ -3505,7 +3472,7 @@ function drawCanvas() {
         ctx.strokeStyle = 'rgba(191, 90, 242, 0.5)';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
-
+        
         const ratios = [
           { rx: 1, ry: 1 },
           { rx: 1, ry: 0.5 },
@@ -3515,7 +3482,7 @@ function drawCanvas() {
           { rx: 0.33, ry: 1 },
           { rx: 0.25, ry: 1 }
         ];
-
+        
         ratios.forEach(r => {
           ctx.beginPath();
           ctx.moveTo(x1, y1);
@@ -3623,13 +3590,13 @@ function initChartUIPanels() {
   const rulerBtn = document.getElementById('draw-btn-ruler');
   const zoomBtn = document.getElementById('draw-btn-zoom');
   const trashBtn = document.getElementById('draw-btn-trash');
-
+  
   // Toggles
   const magnetBtn = document.getElementById('draw-btn-magnet');
   const staydrawBtn = document.getElementById('draw-btn-staydraw');
   const lockallBtn = document.getElementById('draw-btn-lockall');
   const hideallBtn = document.getElementById('draw-btn-hideall');
-
+  
   const drawCanvasEl = document.getElementById('chart-drawing-canvas');
 
   setDrawingTool = (tool, activeBtn) => {
@@ -3637,13 +3604,13 @@ function initChartUIPanels() {
       showToast('error', 'Drawings Locked', 'All drawings are currently locked.');
       return;
     }
-
+    
     activeDrawingTool = tool;
     drawingStartPoint = null;
-
+    
     document.querySelectorAll('.drawing-btn').forEach(btn => btn.classList.remove('active'));
     if (activeBtn) activeBtn.classList.add('active');
-
+    
     const chartContainer = document.getElementById('chart-container');
     if (chartContainer) {
       if (tool) {
@@ -3652,7 +3619,7 @@ function initChartUIPanels() {
         chartContainer.style.cursor = 'default';
       }
     }
-
+    
     if (drawCanvasEl) {
       if (tool) {
         drawCanvasEl.classList.add('drawing-mode-active');
@@ -3676,42 +3643,42 @@ function initChartUIPanels() {
       showToast('info', 'Trend Line Active', 'Click on the chart to select the start coordinate.');
     });
   }
-
+  
   if (channelBtn) {
     channelBtn.addEventListener('click', () => {
       setDrawingTool('channel', channelBtn);
       showToast('info', 'Parallel Channel Active', 'Click on the chart to select the start coordinate.');
     });
   }
-
+  
   if (gannfanBtn) {
     gannfanBtn.addEventListener('click', () => {
       setDrawingTool('gannfan', gannfanBtn);
       showToast('info', 'Gann Fan Active', 'Click on the chart to select the start coordinate.');
     });
   }
-
+  
   if (fibBtn) {
     fibBtn.addEventListener('click', () => {
       setDrawingTool('fib', fibBtn);
       showToast('info', 'Fib Retracement Active', 'Click on the chart to select the start coordinate.');
     });
   }
-
+  
   if (brushBtn) {
     brushBtn.addEventListener('click', () => {
       setDrawingTool('brush', brushBtn);
       showToast('info', 'Highlight Brush Active', 'Click on the chart to select the start coordinate.');
     });
   }
-
+  
   if (textBtn) {
     textBtn.addEventListener('click', () => {
       setDrawingTool('text', textBtn);
       showToast('info', 'Text Annotation Active', 'Click on the chart to choose text placement coordinate.');
     });
   }
-
+  
   if (smileyBtn) {
     smileyBtn.addEventListener('click', () => {
       setDrawingTool('emoji', smileyBtn);
@@ -3725,7 +3692,7 @@ function initChartUIPanels() {
       showToast('info', 'Ruler Measure Active', 'Click on the chart to select the start measurement coordinate.');
     });
   }
-
+  
   if (zoomBtn) {
     zoomBtn.addEventListener('click', () => {
       setDrawingTool('zoom', zoomBtn);
@@ -3746,7 +3713,7 @@ function initChartUIPanels() {
       showToast('info', 'Drawings Cleared', 'All lines and rulers successfully removed.');
     });
   }
-
+  
   if (magnetBtn) {
     magnetBtn.addEventListener('click', () => {
       isMagnetMode = !isMagnetMode;
@@ -3754,7 +3721,7 @@ function initChartUIPanels() {
       showToast('info', 'Magnet Mode', `Magnet snapping is now ${isMagnetMode ? 'ON' : 'OFF'}.`);
     });
   }
-
+  
   if (staydrawBtn) {
     staydrawBtn.addEventListener('click', () => {
       isStayInDrawingMode = !isStayInDrawingMode;
@@ -3762,7 +3729,7 @@ function initChartUIPanels() {
       showToast('info', 'Stay-in-Drawing Mode', `Stay-in-Drawing mode is now ${isStayInDrawingMode ? 'ON' : 'OFF'}.`);
     });
   }
-
+  
   if (lockallBtn) {
     lockallBtn.addEventListener('click', () => {
       isDrawingsLocked = !isDrawingsLocked;
@@ -3770,7 +3737,7 @@ function initChartUIPanels() {
       showToast('info', 'Lock Drawings', `All drawings are now ${isDrawingsLocked ? 'LOCKED' : 'UNLOCKED'}.`);
     });
   }
-
+  
   if (hideallBtn) {
     hideallBtn.addEventListener('click', () => {
       isDrawingsHidden = !isDrawingsHidden;
@@ -3887,17 +3854,17 @@ function updateChartTypeUI() {
     labelEl.textContent = labelMap[currentChartType] || 'Candles';
   }
 
-  if (candlestickSeries) candlestickSeries.applyOptions({
+  if (candlestickSeries) candlestickSeries.applyOptions({ 
     visible: currentChartType === 'candles',
     priceLineVisible: currentChartType === 'candles',
     lastValueVisible: currentChartType === 'candles'
   });
-  if (areaSeries) areaSeries.applyOptions({
+  if (areaSeries) areaSeries.applyOptions({ 
     visible: currentChartType === 'line',
     priceLineVisible: currentChartType === 'line',
     lastValueVisible: currentChartType === 'line'
   });
-  if (barSeries) barSeries.applyOptions({
+  if (barSeries) barSeries.applyOptions({ 
     visible: currentChartType === 'bars',
     priceLineVisible: currentChartType === 'bars',
     lastValueVisible: currentChartType === 'bars'
@@ -3966,13 +3933,13 @@ function renderInstrumentsList() {
   if (!container) return;
 
   container.innerHTML = '';
-
+  
   const coins = marketEngine.coins;
   const activeMappedSymbol = getMappedSymbol();
 
   Object.keys(coins).forEach(symbol => {
     const coin = coins[symbol];
-
+    
     // Determine category and badge
     let category = 'cfd';
     let badgeText = 'CFD';
@@ -3986,12 +3953,12 @@ function renderInstrumentsList() {
     if (friendlyName === 'EUR') friendlyName = 'EUR/USD';
     if (friendlyName === 'XAU') friendlyName = 'XAU/USD';
     if (friendlyName === 'XAG') friendlyName = 'XAG/USD';
-
+    
     const item = document.createElement('div');
     item.className = `instrument-item ${symbol === activeMappedSymbol ? 'active' : ''}`;
     item.setAttribute('data-symbol', symbol);
     item.setAttribute('data-category', category);
-
+    
     const dec = coin.decimalPlaces;
     const currentPrice = coin.currentPrice;
     const lastClose = coin.yesterdayPrice || currentPrice;
@@ -4001,46 +3968,26 @@ function renderInstrumentsList() {
 
     const iconColor = coin.icon === '₿' ? '#ff9f0a' : coin.icon === 'Ξ' ? '#a48df6' : coin.icon === '💵' ? '#0a84ff' : coin.icon === '🪙' ? '#ffd60a' : coin.icon === '🥈' ? '#e2e8f0' : '#bf5af2';
 
-    // Build instrument item DOM safely (avoid innerHTML XSS with user-provided coin.icon)
-    const leftDiv = document.createElement('div');
-    leftDiv.className = 'instrument-left';
-    const iconDiv = document.createElement('div');
-    iconDiv.className = 'instrument-icon';
-    iconDiv.style.color = iconColor;
-    iconDiv.textContent = coin.icon || '?';
-    const metaDiv = document.createElement('div');
-    metaDiv.className = 'instrument-meta';
-    const symbolDiv = document.createElement('div');
-    symbolDiv.className = 'instrument-symbol';
-    symbolDiv.textContent = friendlyName;
-    const badgeDiv = document.createElement('div');
-    badgeDiv.className = `instrument-badge ${category}`;
-    badgeDiv.textContent = badgeText;
-    metaDiv.appendChild(symbolDiv);
-    metaDiv.appendChild(badgeDiv);
-    leftDiv.appendChild(iconDiv);
-    leftDiv.appendChild(metaDiv);
-
-    const rightDiv = document.createElement('div');
-    rightDiv.className = 'instrument-right';
-    const priceDiv = document.createElement('div');
-    priceDiv.className = 'instrument-price font-mono';
-    priceDiv.textContent = currentPrice.toFixed(dec);
-    const changeDiv = document.createElement('div');
-    changeDiv.className = `instrument-change font-mono ${isUp ? 'up' : 'down'}`;
-    changeDiv.textContent = `${isUp ? '+' : ''}${changePct.toFixed(2)}%`;
-    rightDiv.appendChild(priceDiv);
-    rightDiv.appendChild(changeDiv);
-
-    item.appendChild(leftDiv);
-    item.appendChild(rightDiv);
+    item.innerHTML = `
+      <div class="instrument-left">
+        <div class="instrument-icon" style="color: ${iconColor};">${coin.icon}</div>
+        <div class="instrument-meta">
+          <div class="instrument-symbol">${friendlyName}</div>
+          <div class="instrument-badge ${category}">${badgeText}</div>
+        </div>
+      </div>
+      <div class="instrument-right">
+        <div class="instrument-price font-mono">${currentPrice.toFixed(dec)}</div>
+        <div class="instrument-change font-mono ${isUp ? 'up' : 'down'}">${isUp ? '+' : ''}${changePct.toFixed(2)}%</div>
+      </div>
+    `;
 
     item.addEventListener('click', () => {
       let activeSymbolName = friendlyName.replace('/', '');
       if (friendlyName === 'EUR/USD') activeSymbolName = 'EURUSD';
       if (friendlyName === 'XAU/USD') activeSymbolName = 'XAUUSD';
       if (friendlyName === 'XAG/USD') activeSymbolName = 'XAGUSD';
-
+      
       let tabElement = document.querySelector(`.asset-tab[data-symbol="${activeSymbolName}"]`);
       if (!tabElement) {
         const assetTabsContainer = document.querySelector('.asset-tabs');
@@ -4049,7 +3996,7 @@ function renderInstrumentsList() {
           tabElement = document.createElement('div');
           tabElement.className = 'asset-tab';
           tabElement.setAttribute('data-symbol', activeSymbolName);
-
+          
           let iconColor = '#ffd60a';
           if (activeSymbolName.startsWith('BTC')) iconColor = '#ff9f0a';
           else if (activeSymbolName.startsWith('ETH')) iconColor = '#a48df6';
@@ -4062,7 +4009,7 @@ function renderInstrumentsList() {
           coinIconSpan.className = 'coin-icon';
           coinIconSpan.style.color = iconColor;
           coinIconSpan.textContent = coin.icon || '🪙';
-
+          
           const symbolTextSpan = document.createElement('span');
           symbolTextSpan.className = 'tab-symbol-text';
           symbolTextSpan.textContent = friendlyName;
@@ -4084,7 +4031,7 @@ function renderInstrumentsList() {
             const targetSymbol = tabElement.getAttribute('data-symbol');
             switchAsset(targetSymbol, tabElement);
           });
-
+          
           closeSpan.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
@@ -4094,11 +4041,11 @@ function renderInstrumentsList() {
           assetTabsContainer.insertBefore(tabElement, addBtn);
         }
       }
-
+      
       if (tabElement) {
         switchAsset(activeSymbolName, tabElement);
       }
-
+      
       document.querySelectorAll('.instrument-item').forEach(i => i.classList.remove('active'));
       item.classList.add('active');
     });
@@ -4112,7 +4059,7 @@ function renderInstrumentsList() {
 function filterInstrumentsList() {
   const searchInput = document.getElementById('instruments-search-input');
   const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
-
+  
   const activeBtn = document.querySelector('#instruments-sidebar-panel .filter-btn.active');
   const activeCategory = activeBtn ? activeBtn.getAttribute('data-category') : 'all';
 
@@ -4187,18 +4134,16 @@ function initHistoryExporter() {
       history.forEach(trade => {
         const symbol = trade.symbol.replace('/', '');
         const type = trade.type;
-        const tradeLotMultiplier = getLotMultiplier(trade.symbol);
-        const volume = (trade.volume / tradeLotMultiplier).toFixed(2);
-        // Use entryPrice/exitPrice (correct field names from tradingEngine history objects)
-        const openPrice = (trade.entryPrice || trade.openPrice || 0).toFixed(5);
-        const closePrice = (trade.exitPrice || trade.closePrice || 0).toFixed(5);
+        const volume = (trade.volume / lotMultiplier).toFixed(2);
+        const openPrice = trade.openPrice.toFixed(5);
+        const closePrice = trade.closePrice.toFixed(5);
         const tp = trade.tp ? trade.tp.toFixed(5) : '-';
         const sl = trade.sl ? trade.sl.toFixed(5) : '-';
         const openTime = formatBitstarDateTime(trade.openTime);
         const closeTime = formatBitstarDateTime(trade.closeTime);
         const swap = trade.swap ? trade.swap.toFixed(2) : '0.00';
         const reason = trade.exitReason || 'Closed';
-        const pnl = (trade.pnl || 0).toFixed(2);
+        const pnl = trade.pnl.toFixed(2);
 
         const row = `"${symbol}","${type}",${volume},${openPrice},${closePrice},"${tp}","${sl}","${openTime}","${closeTime}",${swap},"${reason}",${pnl}`;
         csvContent += row + '\r\n';
@@ -4263,11 +4208,11 @@ function openModifyPositionModal(pos) {
   // Modal Tabs
   const tabs = document.createElement('div');
   tabs.className = 'modal-tabs';
-
+  
   const tabBtnParams = document.createElement('button');
   tabBtnParams.className = 'modal-tab-btn active';
   tabBtnParams.textContent = 'Modify Setup';
-
+  
   const tabBtnPartial = document.createElement('button');
   tabBtnPartial.className = 'modal-tab-btn';
   tabBtnPartial.textContent = 'Partial Close';
@@ -4289,7 +4234,7 @@ function openModifyPositionModal(pos) {
   // --- 1. POPULATE DETAILS PANEL ---
   const detailsPanel = document.createElement('div');
   detailsPanel.className = 'modal-info-panel';
-
+  
   const addInfoItem = (parent, label, value, id) => {
     const item = document.createElement('div');
     item.className = 'modal-info-item';
@@ -4309,7 +4254,7 @@ function openModifyPositionModal(pos) {
   addInfoItem(detailsPanel, 'Type', pos.type, null);
   addInfoItem(detailsPanel, 'Lots', currentLots.toFixed(2), null);
   addInfoItem(detailsPanel, 'P&L (USD)', `$${pos.pnl.toFixed(2)}`, 'modal-pnl-val');
-
+  
   bodyParams.appendChild(detailsPanel.cloneNode(true));
   bodyPartial.appendChild(detailsPanel);
 
@@ -4324,13 +4269,13 @@ function openModifyPositionModal(pos) {
 
     const wrapper = document.createElement('div');
     wrapper.className = 'modal-input-wrapper';
-
+    
     const input = document.createElement('input');
     input.type = 'number';
     input.placeholder = placeholder;
     input.step = 'any';
     if (value) input.value = value;
-
+    
     wrapper.appendChild(input);
     if (suffix) {
       const suf = document.createElement('span');
@@ -4416,7 +4361,7 @@ function openModifyPositionModal(pos) {
 
   const sliderWrapper = document.createElement('div');
   sliderWrapper.className = 'modal-slider-wrapper';
-
+  
   const slider = document.createElement('input');
   slider.type = 'range';
   slider.className = 'modal-slider';
@@ -4479,7 +4424,7 @@ function openModifyPositionModal(pos) {
       valEl.style.color = isProf ? 'var(--color-buy)' : 'var(--color-sell)';
     }
   }
-
+  
   // --- 4. MODAL FOOTER ---
   const footer = document.createElement('div');
   footer.className = 'modal-footer';
@@ -4492,7 +4437,7 @@ function openModifyPositionModal(pos) {
   const confirmBtn = document.createElement('button');
   confirmBtn.className = 'modal-btn confirm';
   confirmBtn.textContent = 'Confirm Modification';
-
+  
   footer.appendChild(cancelBtn);
   footer.appendChild(confirmBtn);
   modal.appendChild(footer);
@@ -4570,7 +4515,7 @@ function initGoogleAuth() {
   const profileEmail = document.getElementById('user-profile-email');
   const profileDropdown = document.getElementById('profile-dropdown');
   const signOutBtn = document.getElementById('sign-out-btn');
-
+  
   const googleClientId = '190383912136-u78g0vl8jdd1lavpbo693gspiii3sfq9.apps.googleusercontent.com';
 
   // Profile dropdown toggle
@@ -4584,36 +4529,15 @@ function initGoogleAuth() {
     });
   }
 
-    // Handle Login UI elements update
+  // Handle Login UI elements update
   function updateLoginUI(email, name, picture) {
-    const depositBtn = document.getElementById('deposit-crypto-btn');
-    const withdrawBtn = document.getElementById('withdraw-crypto-btn');
+    if (loginBtnContainer) loginBtnContainer.classList.add('hidden');
+    if (loggedInProfile) loggedInProfile.classList.remove('hidden');
+    if (profilePic) profilePic.src = picture;
+    if (profileName) profileName.textContent = name;
+    if (profileEmail) profileEmail.textContent = email;
 
-    if (tradingEngine.isGuest) {
-      if (loginBtnContainer) loginBtnContainer.classList.remove('hidden');
-      if (loggedInProfile) loggedInProfile.classList.add('hidden');
-      if (depositBtn) depositBtn.classList.add('hidden');
-      if (withdrawBtn) withdrawBtn.classList.add('hidden');
-      hideRightWorkspace();
-    } else {
-      if (loginBtnContainer) loginBtnContainer.classList.add('hidden');
-      if (loggedInProfile) loggedInProfile.classList.remove('hidden');
-      if (depositBtn) depositBtn.classList.remove('hidden');
-      if (withdrawBtn) withdrawBtn.classList.remove('hidden');
-
-      // Only set src if picture is a valid non-empty string (avoid 404 from null/undefined)
-      if (profilePic && picture && typeof picture === 'string' && picture.length > 0) {
-        profilePic.src = picture;
-      }
-      if (profileName) profileName.textContent = name || '';
-      if (profileEmail) profileEmail.textContent = email || '';
-
-      if (window.checkAdminStatus) {
-        window.checkAdminStatus();
-      }
-
-      showRightWorkspace();
-    }
+    showRightWorkspace();
   }
 
   // Handle Login flow
@@ -4625,26 +4549,26 @@ function initGoogleAuth() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-
+      
       if (!response.ok) {
         const err = await response.json();
         throw new Error(err.error || 'Authentication failed');
       }
-
+      
       const user = await response.json();
-
+      
       // Update local storage user session
       localStorage.setItem('user_session', JSON.stringify({
         email: user.email,
         name: user.name,
         picture: user.picture
       }));
-
+      
       // Update trading engine and load state
       tradingEngine.accountId = user.accountId;
       tradingEngine.isGuest = false;
       tradingEngine.loadStateFromServer();
-
+      
       updateLoginUI(user.email, user.name, user.picture);
       showToast('success', 'Logged In', `Welcome back, ${user.name}!`);
     } catch (err) {
@@ -4662,28 +4586,11 @@ function initGoogleAuth() {
         localStorage.removeItem('user_session');
         if (profileDropdown) profileDropdown.classList.add('hidden');
         if (loginBtnContainer) loginBtnContainer.classList.remove('hidden');
-        if (loggedInProfile) loggedInProfile.classList.add('hidden');
         
-        const depositBtn = document.getElementById('deposit-crypto-btn');
-        const withdrawBtn = document.getElementById('withdraw-crypto-btn');
-        const adminBtn = document.getElementById('admin-panel-btn');
-        if (depositBtn) depositBtn.classList.add('hidden');
-        if (withdrawBtn) withdrawBtn.classList.add('hidden');
-        if (adminBtn) adminBtn.classList.add('hidden');
-
-        // Clear all in-memory trading state immediately (prevent old data flash)
-        tradingEngine.positions = [];
-        tradingEngine.pendingOrders = [];
-        tradingEngine.history = [];
-        tradingEngine.balance = 0;
-        tradingEngine.isLoaded = false;
-        tradingEngine.recalculateStats({});
-        tradingEngine.notify();
-
         // Reset trading engine to default guest state
         tradingEngine.accountId = tradingEngine.generateAccountId();
         tradingEngine.isGuest = true;
-
+        
         // Re-authenticate guest session
         await initializeSession();
       } catch (err) {
@@ -4700,25 +4607,54 @@ function initGoogleAuth() {
       if (res.ok) {
         const session = await res.json();
         tradingEngine.accountId = session.accountId;
-        tradingEngine.isGuest = false;
+        tradingEngine.isGuest = session.isGuest;
         tradingEngine.loadStateFromServer();
-
-        updateLoginUI(session.email, session.name, session.picture);
+        
+        if (!session.isGuest) {
+          updateLoginUI(session.email, session.name, session.picture);
+        } else {
+          if (loginBtnContainer) loginBtnContainer.classList.remove('hidden');
+          if (loggedInProfile) loggedInProfile.classList.add('hidden');
+          hideRightWorkspace();
+        }
       } else {
-        // Fallback to Demo Account instead of forcing Google Login
-        tradingEngine.accountId = tradingEngine.generateAccountId();
+        // No valid session cookie. Determine if we have a stored guest accountId
+        let savedGuestId = null;
+        try {
+          const saved = localStorage.getItem(tradingEngine.storageKey);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            savedGuestId = parsed.accountId;
+          }
+        } catch (e) {}
+        
+        const guestId = savedGuestId || tradingEngine.generateAccountId();
+        
+        // Authenticate guest session
+        const guestRes = await fetch('/api/auth/guest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountId: guestId })
+        });
+        
+        if (!guestRes.ok) throw new Error('Failed to create guest session');
+        const guestData = await guestRes.json();
+        
+        tradingEngine.accountId = guestData.accountId;
         tradingEngine.isGuest = true;
         tradingEngine.loadStateFromServer();
         
-        updateLoginUI('demo@bitrow.com', 'Demo Account', 'https://ui-avatars.com/api/?name=Demo+Account&background=333&color=fff');
+        if (loginBtnContainer) loginBtnContainer.classList.remove('hidden');
+        if (loggedInProfile) loggedInProfile.classList.add('hidden');
+        hideRightWorkspace();
       }
     } catch (err) {
       console.error('Session initialization failed:', err);
-      tradingEngine.accountId = tradingEngine.generateAccountId();
+      // Fallback guest setup without session cookie (read-only/local mode alert)
+      tradingEngine.accountId = tradingEngine.accountId || tradingEngine.generateAccountId();
       tradingEngine.isGuest = true;
       tradingEngine.loadStateFromServer();
-      
-      updateLoginUI('demo@bitrow.com', 'Demo Account', 'https://ui-avatars.com/api/?name=Demo+Account&background=333&color=fff');
+      hideRightWorkspace();
     }
   }
 
@@ -4751,355 +4687,21 @@ function initGoogleAuth() {
         });
       }
 
-      // Do not show One Tap popup automatically to avoid annoyance
-      if (tradingEngine.isGuest) {
-        // google.accounts.id.prompt();
-      }
+      // Attempt One Tap natively on first load
+      google.accounts.id.prompt();
     }
   }
 
-  function initWeb3Deposit() {
-    const depositBtn = document.getElementById('deposit-crypto-btn');
-    const modalOverlay = document.getElementById('deposit-modal-overlay');
-    const closeBtn = document.getElementById('close-deposit-modal');
-    const cancelBtn = document.getElementById('cancel-deposit-btn');
-    const connectBtn = document.getElementById('connect-wallet-btn');
-    const submitBtn = document.getElementById('submit-deposit-btn');
-    const walletDisplay = document.getElementById('wallet-address-display');
-    const amountInput = document.getElementById('deposit-amount-input');
-    const statusMsg = document.getElementById('deposit-status-msg');
-    
-    let userSigner = null;
-
-    depositBtn.addEventListener('click', () => {
-      if (tradingEngine.isGuest) {
-        showToast('error', 'Login Required', 'You must sign in to deposit funds.');
-        return;
+  if (typeof google === 'undefined') {
+    const interval = setInterval(() => {
+      if (typeof google !== 'undefined') {
+        clearInterval(interval);
+        startGIS();
       }
-      modalOverlay.classList.add('show');
-    });
-
-    const closeModal = () => {
-      modalOverlay.classList.remove('show');
-      statusMsg.classList.add('hidden');
-      amountInput.value = '';
-    };
-
-    closeBtn.addEventListener('click', closeModal);
-    cancelBtn.addEventListener('click', closeModal);
-
-    connectBtn.addEventListener('click', async () => {
-      if (typeof window.ethereum === 'undefined') {
-        statusMsg.textContent = "MetaMask not detected. Please install a Web3 wallet.";
-        statusMsg.style.color = "#ff4d4d";
-        statusMsg.classList.remove('hidden');
-        return;
-      }
-      try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        const network = await provider.getNetwork();
-        
-        // Ensure user is on Polygon Mainnet (chainId 137)
-        if (network.chainId !== 137n) {
-          try {
-            await window.ethereum.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0x89' }], // 137 in hex
-            });
-          } catch (switchError) {
-            statusMsg.textContent = "Please switch your wallet to Polygon Mainnet.";
-            statusMsg.style.color = "#ff4d4d";
-            statusMsg.classList.remove('hidden');
-            return;
-          }
-        }
-        
-        userSigner = await provider.getSigner();
-        const address = await userSigner.getAddress();
-        
-        connectBtn.classList.add('hidden');
-        walletDisplay.textContent = "Connected: " + address.substring(0,6) + "..." + address.substring(address.length - 4);
-        walletDisplay.classList.remove('hidden');
-        submitBtn.disabled = false;
-        submitBtn.style.opacity = '1';
-        submitBtn.style.cursor = 'pointer';
-        
-      } catch (err) {
-        statusMsg.textContent = "Failed to connect wallet: " + err.message;
-        statusMsg.style.color = "#ff4d4d";
-        statusMsg.classList.remove('hidden');
-      }
-    });
-
-    submitBtn.addEventListener('click', async () => {
-      if (!userSigner) return;
-      const amount = amountInput.value;
-      if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
-        statusMsg.textContent = "Please enter a valid amount.";
-        statusMsg.style.color = "#ff4d4d";
-        statusMsg.classList.remove('hidden');
-        return;
-      }
-
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Processing...";
-      statusMsg.textContent = "Please approve the transaction in your wallet...";
-      statusMsg.style.color = "var(--text-secondary)";
-      statusMsg.classList.remove('hidden');
-
-      try {
-        // Warning: This admin address is meant to be fetched from backend or hardcoded here securely
-        // In this implementation, the backend does the true check against process.env.RECEIVING_WALLET_ADDRESS
-        // The frontend needs to know where to send it. We'll fetch it from an API or just use a placeholder
-        // For security, it's best to fetch it.
-        const adminWalletRes = await fetch('/api/wallet/address');
-        if (!adminWalletRes.ok) throw new Error("Could not fetch receiving address.");
-        const { address: adminAddress } = await adminWalletRes.json();
-
-        const tx = await userSigner.sendTransaction({
-          to: adminAddress,
-          value: ethers.parseEther(amount.toString())
-        });
-
-        statusMsg.textContent = "Waiting for network confirmation...";
-        const receipt = await tx.wait();
-
-        if (receipt.status === 1) {
-          statusMsg.textContent = "Transaction confirmed! Verifying with backend...";
-          const verifyRes = await fetch('/api/wallet/deposit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ txHash: tx.hash })
-          });
-          const verifyData = await verifyRes.json();
-
-          if (verifyRes.ok) {
-            statusMsg.textContent = `Success! Credited ${verifyData.amountUsd.toFixed(2)} USD.`;
-            statusMsg.style.color = "#00c076";
-            tradingEngine.balance += verifyData.amountUsd;
-            updateBalanceUI();
-            setTimeout(closeModal, 3000);
-          } else {
-            throw new Error(verifyData.error || "Backend verification failed.");
-          }
-        } else {
-          throw new Error("Transaction failed on the network.");
-        }
-      } catch (err) {
-        statusMsg.textContent = err.message.substring(0, 50) + (err.message.length > 50 ? "..." : "");
-        statusMsg.style.color = "#ff4d4d";
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Send Deposit";
-      }
-    });
+    }, 100);
+    setTimeout(() => clearInterval(interval), 10000);
+  } else {
+    startGIS();
   }
-
-  function initWeb3Withdraw() {
-    const withdrawBtn = document.getElementById('withdraw-crypto-btn');
-    const modalOverlay = document.getElementById('withdraw-modal-overlay');
-    const closeBtn = document.getElementById('close-withdraw-modal');
-    const cancelBtn = document.getElementById('cancel-withdraw-btn');
-    const submitBtn = document.getElementById('submit-withdraw-btn');
-    const addressInput = document.getElementById('withdraw-address-input');
-    const amountInput = document.getElementById('withdraw-amount-input');
-    const statusMsg = document.getElementById('withdraw-status-msg');
-
-    withdrawBtn.addEventListener('click', () => {
-      if (tradingEngine.isGuest) {
-        showToast('error', 'Login Required', 'You must sign in to withdraw funds.');
-        return;
-      }
-      modalOverlay.classList.add('show');
-    });
-
-    const closeModal = () => {
-      modalOverlay.classList.remove('show');
-      statusMsg.classList.add('hidden');
-      addressInput.value = '';
-      amountInput.value = '';
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Request Withdraw';
-    };
-
-    closeBtn.addEventListener('click', closeModal);
-    cancelBtn.addEventListener('click', closeModal);
-
-    submitBtn.addEventListener('click', async () => {
-      const address = addressInput.value.trim();
-      const amount = parseFloat(amountInput.value);
-      
-      if (!address || !address.startsWith('0x') || address.length !== 42) {
-        statusMsg.textContent = "Please enter a valid Polygon address.";
-        statusMsg.style.color = "#ff4d4d";
-        statusMsg.classList.remove('hidden');
-        return;
-      }
-      
-      if (!amount || isNaN(amount) || amount <= 0 || amount > tradingEngine.balance) {
-        statusMsg.textContent = "Invalid amount or insufficient balance.";
-        statusMsg.style.color = "#ff4d4d";
-        statusMsg.classList.remove('hidden');
-        return;
-      }
-
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Processing...";
-      statusMsg.textContent = "Submitting withdrawal request...";
-      statusMsg.style.color = "var(--text-secondary)";
-      statusMsg.classList.remove('hidden');
-
-      try {
-        const res = await fetch('/api/wallet/withdraw', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ walletAddress: address, amountUsd: amount })
-        });
-        
-        const data = await res.json();
-        if (res.ok) {
-          statusMsg.textContent = "Withdrawal request submitted successfully!";
-          statusMsg.style.color = "#00c076";
-          tradingEngine.balance -= amount;
-          updateBalanceUI();
-          setTimeout(closeModal, 2500);
-        } else {
-          throw new Error(data.error || "Failed to submit request.");
-        }
-      } catch (err) {
-        statusMsg.textContent = err.message;
-        statusMsg.style.color = "#ff4d4d";
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Request Withdraw";
-      }
-    });
-  }
-
-  function initAdminPanel() {
-    const adminBtn = document.getElementById('admin-panel-btn');
-    const modalOverlay = document.getElementById('admin-modal-overlay');
-    const closeBtn = document.getElementById('close-admin-modal');
-    const listContainer = document.getElementById('admin-withdrawals-list');
-    
-    // We will unhide the button during successful login if the backend confirms admin
-    // For simplicity, we can fetch stats. If it fails (403), they aren't admin.
-    // If it succeeds, they are admin and we show the button.
-    
-    // Expose a global or hook into login to check admin status
-    window.checkAdminStatus = async () => {
-      try {
-        const res = await fetch('/api/admin/stats');
-        if (res.ok) {
-          adminBtn.classList.remove('hidden');
-        }
-      } catch(e) {}
-    };
-
-    adminBtn.addEventListener('click', async () => {
-      modalOverlay.classList.add('show');
-      await refreshAdminStats();
-    });
-    
-    closeBtn.addEventListener('click', () => {
-      modalOverlay.classList.remove('show');
-    });
-
-    async function refreshAdminStats() {
-      try {
-        listContainer.innerHTML = 'Loading...';
-        const res = await fetch('/api/admin/stats');
-        if (!res.ok) throw new Error('Not authorized');
-        
-        const data = await res.json();
-        document.getElementById('admin-total-users').textContent = data.totalUsers;
-        document.getElementById('admin-total-balance').textContent = '$' + data.totalBalance.toFixed(2);
-        document.getElementById('admin-total-deposits').textContent = data.totalDeposits;
-        document.getElementById('admin-total-in').textContent = '$' + data.totalDepositAmount.toFixed(2);
-        
-        listContainer.innerHTML = '';
-        if (data.withdrawals.length === 0) {
-          listContainer.innerHTML = '<div style="padding: 8px; text-align: center;">No withdrawal requests found.</div>';
-          return;
-        }
-
-        data.withdrawals.forEach(w => {
-          const div = document.createElement('div');
-          div.style.background = 'var(--bg-tertiary)';
-          div.style.padding = '8px';
-          div.style.borderRadius = '4px';
-          div.style.display = 'flex';
-          div.style.justifyContent = 'space-between';
-          div.style.alignItems = 'center';
-          div.style.border = '1px solid var(--border-color)';
-          
-          let statusColor = w.status === 'pending' ? '#ff9f0a' : (w.status === 'approved' ? '#00c076' : '#ff4d4d');
-          
-          let actionButtons = '';
-          if (w.status === 'pending') {
-            actionButtons = `
-              <div style="display: flex; gap: 4px;">
-                <button class="admin-approve-btn" data-id="${w.id}" style="background: rgba(0, 192, 118, 0.2); border: 1px solid #00c076; color: #00c076; padding: 2px 6px; border-radius: 3px; font-size: 9px; cursor: pointer;">Approve</button>
-                <button class="admin-reject-btn" data-id="${w.id}" style="background: rgba(255, 77, 77, 0.2); border: 1px solid #ff4d4d; color: #ff4d4d; padding: 2px 6px; border-radius: 3px; font-size: 9px; cursor: pointer;">Reject</button>
-              </div>
-            `;
-          }
-
-          div.innerHTML = `
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-              <span style="font-weight: 700; color: #fff;">$${parseFloat(w.amount_usd).toFixed(2)} USD</span>
-              <span style="font-family: var(--font-mono); font-size: 8px; color: var(--text-muted);">${w.wallet_address}</span>
-            </div>
-            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-              <span style="color: ${statusColor}; font-weight: 600; text-transform: uppercase; font-size: 8px;">${w.status}</span>
-              ${actionButtons}
-            </div>
-          `;
-          listContainer.appendChild(div);
-        });
-
-        // Attach event listeners
-        document.querySelectorAll('.admin-approve-btn').forEach(btn => {
-          btn.addEventListener('click', async (e) => {
-            const id = e.target.dataset.id;
-            if (confirm('Did you manually send the crypto? This will mark it as approved.')) {
-              await fetch(`/api/admin/withdrawals/${id}/approve`, { method: 'POST' });
-              refreshAdminStats();
-            }
-          });
-        });
-        
-        document.querySelectorAll('.admin-reject-btn').forEach(btn => {
-          btn.addEventListener('click', async (e) => {
-            const id = e.target.dataset.id;
-            if (confirm('Are you sure you want to reject this and refund the user?')) {
-              await fetch(`/api/admin/withdrawals/${id}/reject`, { method: 'POST' });
-              refreshAdminStats();
-            }
-          });
-        });
-
-      } catch (err) {
-        listContainer.innerHTML = '<div style="color: #ff4d4d; padding: 8px;">Failed to load stats</div>';
-      }
-    }
-  }
-
-  function tryStartGIS() {
-    if (typeof google === 'undefined') {
-      const interval = setInterval(() => {
-        if (typeof google !== 'undefined') {
-          clearInterval(interval);
-          startGIS();
-        }
-      }, 100);
-      setTimeout(() => clearInterval(interval), 10000);
-    } else {
-      startGIS();
-    }
-  }
-
-  // Delay GIS until session init finishes so we know if user is a guest or not
-  setTimeout(tryStartGIS, 1500);
-
-}; // End DOMContentLoaded or main wrapper
+}
 

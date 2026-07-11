@@ -1,27 +1,27 @@
 /* Zuperior Web Terminal Reborn - Premium Styling System */
 :root {
-  --bg-primary: #07080a;
-  /* Obsidian black-grey background */
-  --bg-secondary: #0c0d12;
+  --bg-primary: #000000;
+  /* Pure pitch-black OLED background */
+  --bg-secondary: #000000;
   /* Header & Panel backgrounds */
-  --bg-tertiary: #131722;
+  --bg-tertiary: #080808;
   /* Card panels, inputs & highlights */
-  --bg-active: #1e222d;
+  --bg-active: #141414;
   /* Active elements & dropdown highlights */
-  --border-color: #1a1f2c;
+  --border-color: #111111;
   /* Professional dark borders */
 
-  --accent-color: #7c4dff;
-  /* Zuperior Purple accent */
-  --accent-hover: #b388ff;
+  --accent-color: #ffb700;
+  /* Exness Gold accent */
+  --accent-hover: #ffd000;
 
-  --color-buy: #1080ff;
-  /* Zuperior Buy Blue/Cyan */
-  --color-buy-bg: rgba(16, 128, 255, 0.08);
-  --color-buy-hover: #268aff;
+  --color-buy: #00c076;
+  /* Buy Green */
+  --color-buy-bg: rgba(0, 192, 118, 0.08);
+  --color-buy-hover: #00d984;
 
   --color-sell: #ff4d4d;
-  /* Zuperior Sell Red */
+  /* Sell Red */
   --color-sell-bg: rgba(255, 77, 77, 0.08);
   --color-sell-hover: #ff6666;
 
@@ -899,7 +899,7 @@ input[type="number"]::-webkit-outer-spin-button {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  background-color: #0c1017;
+  background-color: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 2px 8px;
@@ -3495,4 +3495,199 @@ input[type="number"]::-webkit-outer-spin-button {
   background-color: var(--bg-active) !important;
   border-color: rgba(255, 255, 255, 0.15) !important;
   color: #fff !important;
+}
+
+/* Account Type Selector Styles */
+.account-type-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.account-type-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  z-index: 1000;
+  min-width: 150px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.account-type-option {
+  padding: 8px 12px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  text-align: left;
+}
+
+.account-type-option:hover {
+  background-color: var(--bg-active);
+  color: #fff;
+}
+
+.account-type-option.active {
+  color: var(--accent-color);
+  background-color: rgba(255, 183, 0, 0.05);
+}
+
+/* Leverage Selector Styles */
+.leverage-select-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.leverage-select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  height: 30px;
+  padding: 0 8px;
+  transition: border-color 0.15s ease;
+  cursor: pointer;
+}
+
+.leverage-select-wrapper:focus-within {
+  border-color: rgba(255, 183, 0, 0.5);
+}
+
+.leverage-select-wrapper select {
+  flex: 1;
+  background: none;
+  border: none;
+  height: 100%;
+  color: #fff;
+  font-size: 11px;
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.leverage-select-wrapper::after {
+  content: '▼';
+  font-size: 8px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  position: absolute;
+  right: 10px;
+}
+
+/* Deposit & Withdraw Modal Specifics */
+.dw-modal-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dw-tab-row {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 8px;
+}
+
+.dw-tab-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.dw-tab-btn:hover {
+  color: #fff;
+}
+
+.dw-tab-btn.active {
+  color: var(--accent-color);
+  border-bottom-color: var(--accent-color);
+}
+
+.dw-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dw-input-wrapper {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  height: 32px;
+  padding: 0 10px;
+}
+
+.dw-input-wrapper input {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  outline: none;
+}
+
+.dw-input-wrapper .suffix {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+/* Header Deposit Button */
+.exness-deposit-btn {
+  background-color: var(--accent-color);
+  color: #000;
+  border: none;
+  padding: 6px 14px;
+  border-radius: var(--border-radius-sm);
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.exness-deposit-btn:hover {
+  background-color: var(--accent-hover);
+  box-shadow: 0 0 8px rgba(255, 183, 0, 0.4);
+}
+
+.exness-withdraw-btn {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 5px 14px;
+  border-radius: var(--border-radius-sm);
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.exness-withdraw-btn:hover {
+  background-color: var(--bg-active);
+  color: #fff;
 }

@@ -191,6 +191,7 @@ app.post('/api/auth/google', async (req, res) => {
       email: googleUser.email,
       name: googleUser.name || googleUser.email.split('@')[0],
       picture: googleUser.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(googleUser.name || '')}&background=random&color=fff`,
+      isGuest: false,
       exp: Date.now() + 30 * 24 * 60 * 60 * 1000
     };
     const token = signToken(payload, JWT_SECRET);
@@ -214,13 +215,14 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 app.get('/api/auth/session', authenticateSession, (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.json({
     success: true,
     accountId: req.user.accountId,
     email: req.user.email,
     name: req.user.name,
     picture: req.user.picture,
-    isGuest: req.user.isGuest
+    isGuest: req.user.isGuest === true
   });
 });
 
@@ -247,7 +249,9 @@ app.get('/api/account/:id', authenticateSession, async (req, res) => {
         balance: parseFloat(row.balance),
         positions: row.positions,
         pendingOrders: row.pending_orders,
-        history: row.history
+        history: row.history,
+        accountType: row.account_type || 'Standard',
+        leverage: parseInt(row.leverage) || 200
       });
     } else {
       // Return default values; the client will save this default state to the DB when it initializes.
@@ -256,7 +260,9 @@ app.get('/api/account/:id', authenticateSession, async (req, res) => {
         balance: 10000.00,
         positions: [],
         pendingOrders: [],
-        history: []
+        history: [],
+        accountType: 'Standard',
+        leverage: 200
       });
     }
   } catch (err) {
@@ -267,7 +273,7 @@ app.get('/api/account/:id', authenticateSession, async (req, res) => {
 });
 
 app.post('/api/account/save', authenticateSession, async (req, res) => {
-  const { accountId, balance, positions, pendingOrders, history } = req.body;
+  const { accountId, balance, positions, pendingOrders, history, accountType, leverage } = req.body;
 
   if (!accountId || !/^[a-zA-Z0-9 #_@.-]+$/.test(accountId)) {
     return res.status(400).json({ error: 'Invalid or missing account ID' });
@@ -281,16 +287,18 @@ app.post('/api/account/save', authenticateSession, async (req, res) => {
   try {
     // Using parameterized upsert to prevent SQL injection and handle concurrent updates safely
     await query(
-      `INSERT INTO trading_accounts (account_id, balance, positions, pending_orders, history)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO trading_accounts (account_id, balance, positions, pending_orders, history, account_type, leverage)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (account_id) DO UPDATE
-       SET balance = $2, positions = $3, pending_orders = $4, history = $5, updated_at = CURRENT_TIMESTAMP`,
+       SET balance = $2, positions = $3, pending_orders = $4, history = $5, account_type = $6, leverage = $7, updated_at = CURRENT_TIMESTAMP`,
       [
         accountId,
         parseFloat(balance) || 10000.00,
         JSON.stringify(positions || []),
         JSON.stringify(pendingOrders || []),
-        JSON.stringify(history || [])
+        JSON.stringify(history || []),
+        accountType || 'Standard',
+        parseInt(leverage) || 200
       ]
     );
     res.json({ success: true });
@@ -319,6 +327,12 @@ async function initDatabase() {
         history JSONB DEFAULT '[]'::jsonb,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+    // Add account_type and leverage columns if they do not exist
+    await query(`
+      ALTER TABLE trading_accounts 
+      ADD COLUMN IF NOT EXISTS account_type VARCHAR(50) DEFAULT 'Standard',
+      ADD COLUMN IF NOT EXISTS leverage INTEGER DEFAULT 200;
     `);
     console.log('Database tables verified/created successfully.');
   } catch (err) {

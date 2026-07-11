@@ -156,8 +156,6 @@ function initApp() {
   startLiveClock();
   // startLatencySimulator();
   
-  // New features initializers
-  initHistoryExporter();
   
   // Initialize drawing toolbar collapsible drawer
   const collapseBtn = document.getElementById('drawing-toolbar-collapse-btn');
@@ -402,6 +400,9 @@ function initApp() {
       }
     });
   }
+
+  // Initialize Exness Replica custom features
+  initExnessFeatures();
 }
 
 // ----------------------------------------------------
@@ -733,19 +734,25 @@ function getLotMultiplier(symbol) {
   if (sym.startsWith('BTC')) return 1.0;     // 1 BTC per lot
   if (sym.startsWith('ETH')) return 10.0;    // 10 ETH per lot
   if (sym.startsWith('EUR')) return 100000.0; // 100,000 EUR per lot
-  if (sym.startsWith('XAU')) return 100.0;    // 100 oz of Gold per lot
-  if (sym.startsWith('XAG')) return 5000.0;   // 5,000 oz of Silver per lot
+  if (sym.startsWith('XAU') || sym.startsWith('GC')) return 100.0;    // 100 oz of Gold per lot
+  if (sym.startsWith('XAG') || sym.startsWith('SI')) return 5000.0;   // 5,000 oz of Silver per lot
   return 1000.0; // USOIL: 1,000 barrels per lot
 }
 
 function getSpread(symbol, currentPrice) {
   const cleanSymbol = symbol.replace('/', '').replace('=X', '').replace('=F', '');
-  if (cleanSymbol.includes('BTC')) return 15.00;
-  if (cleanSymbol.includes('ETH')) return 1.50;
-  if (cleanSymbol.includes('EUR')) return 0.00008; // 0.8 pips
-  if (cleanSymbol.includes('XAU') || cleanSymbol === 'GC') return 0.25;    // 25 cents
-  if (cleanSymbol.includes('XAG') || cleanSymbol === 'SI') return 0.015;   // 1.5 cents
-  return 0.03; // USOIL: 3 cents
+  let baseSpread = 0.03;
+  if (cleanSymbol.includes('BTC')) baseSpread = 15.00;
+  else if (cleanSymbol.includes('ETH')) baseSpread = 1.50;
+  else if (cleanSymbol.includes('EUR')) baseSpread = 0.00008; // 0.8 pips
+  else if (cleanSymbol.includes('XAU') || cleanSymbol === 'GC') baseSpread = 0.25;    // 25 cents
+  else if (cleanSymbol.includes('XAG') || cleanSymbol === 'SI') baseSpread = 0.015;   // 1.5 cents
+
+  const accountType = tradingEngine.accountType || 'Standard';
+  if (accountType === 'Pro') return baseSpread * 0.7;
+  if (accountType === 'Raw Spread') return baseSpread * 0.2;
+  if (accountType === 'Zero') return baseSpread * 0.05;
+  return baseSpread;
 }
 
 function getPipSize(symbol) {
@@ -792,13 +799,13 @@ function initChart() {
       horzLine: { color: '#ffb700', width: 1, style: 3 }
     },
     rightPriceScale: {
-      borderColor: '#1e2533',
+      borderColor: '#111111',
       autoScale: true,
       entireTextOnly: true,
       scaleMargins: { top: 0.1, bottom: 0.2 }
     },
     timeScale: {
-      borderColor: '#1e2533',
+      borderColor: '#111111',
       timeVisible: true,
       secondsVisible: false
     }
@@ -889,7 +896,7 @@ function initChart() {
   });
 
   volumeSeries = chart.addSeries(HistogramSeries, {
-    color: '#19202e',
+    color: 'rgba(255, 255, 255, 0.08)',
     priceFormat: { type: 'volume' },
     priceScaleId: '', 
     scaleMargins: { top: 0.82, bottom: 0 },
@@ -1917,9 +1924,11 @@ function updateOrderCalculations() {
   const cryptoVolume = lotSizeValue * lotMultiplier;
   const contractValue = cryptoVolume * price;
   
-  // Bitstar standard default leverage: 1:400
-  const leverageVal = 400;
-  const marginRequired = contractValue / leverageVal;
+  // Exness dynamic leverage selector
+  const leverageSelect = document.getElementById('order-leverage-select');
+  const leverageValStr = leverageSelect ? leverageSelect.value : '200';
+  const leverageVal = leverageValStr === 'Unlimited' ? 2100000000 : parseInt(leverageValStr);
+  const marginRequired = leverageVal >= 100000 ? 0 : contractValue / leverageVal;
   
   // Exness standard account spread cost representation
   const spreadDiff = getSpread(activeSymbol, coin.currentPrice);
@@ -1927,7 +1936,7 @@ function updateOrderCalculations() {
 
   document.getElementById('summary-fees').textContent = `≈ ${fee.toFixed(2)} USD`;
   document.getElementById('summary-margin').textContent = `${marginRequired.toFixed(2)} USD`;
-  document.getElementById('summary-leverage').textContent = '1:400';
+  document.getElementById('summary-leverage').textContent = leverageValStr === 'Unlimited' ? 'Unlimited' : `1:${leverageValStr}`;
 
   // Dynamic TP/SL metrics below inputs
   const tpVal = parseFloat(document.getElementById('tp-price-input').value);
@@ -2007,7 +2016,8 @@ function handleExecuteOrder() {
   }
 
   // Leverage factor
-  const leverageVal = 400;
+  const leverageSelect = document.getElementById('order-leverage-select');
+  const leverageVal = leverageSelect ? leverageSelect.value : '200';
 
   // Place order
   const success = tradingEngine.placeOrder({
@@ -2416,11 +2426,47 @@ function handleTradingTick(engine) {
   const displayBalance = `${fmt(engine.balance)} USD`;
   const displayMargin = `${fmt(engine.marginUsed)} USD`;
 
-  document.getElementById('balance-header-display').textContent = displayBalance;
+  const balanceHeaderDisplay = document.getElementById('balance-header-display');
+  if (balanceHeaderDisplay) {
+    balanceHeaderDisplay.textContent = displayBalance;
+  }
   document.getElementById('equity-display-val').textContent = displayEquity;
   document.getElementById('free-margin-display-val').textContent = displayFreeMargin;
   document.getElementById('balance-display-val').textContent = displayBalance;
   document.getElementById('margin-display-val').textContent = displayMargin;
+
+  // Sync Exness Account Switcher and Leverage States dynamically on backend tick
+  const accountTypeDisplay = document.getElementById('account-type-display');
+  if (accountTypeDisplay) {
+    accountTypeDisplay.textContent = engine.accountType || 'Standard';
+  }
+  const accountClassBadge = document.getElementById('account-class-badge');
+  if (accountClassBadge) {
+    if (engine.accountType === 'Standard') {
+      accountClassBadge.textContent = 'Real';
+      accountClassBadge.style.backgroundColor = 'rgba(255, 183, 0, 0.12)';
+      accountClassBadge.style.color = '#ffb700';
+    } else {
+      accountClassBadge.textContent = 'Pro';
+      accountClassBadge.style.backgroundColor = 'rgba(0, 192, 118, 0.12)';
+      accountClassBadge.style.color = '#00c076';
+    }
+  }
+  const dropdownMenu = document.getElementById('account-switcher-dropdown');
+  if (dropdownMenu) {
+    const options = dropdownMenu.querySelectorAll('.account-type-option');
+    options.forEach(opt => {
+      if (opt.getAttribute('data-type') === (engine.accountType || 'Standard')) {
+        opt.classList.add('active');
+      } else {
+        opt.classList.remove('active');
+      }
+    });
+  }
+  const leverageSelect = document.getElementById('order-leverage-select');
+  if (leverageSelect && engine.leverage && document.activeElement !== leverageSelect) {
+    leverageSelect.value = engine.leverage;
+  }
   
   const lvlDisplay = document.getElementById('margin-level-display-val');
   if (engine.marginLevel === null) {
@@ -4117,51 +4163,7 @@ function updateInstrumentsPrices(coins) {
   });
 }
 
-// Initialize Closed History CSV/Excel Exporter
-function initHistoryExporter() {
-  const exportBtn = document.getElementById('export-history-btn');
-  if (exportBtn) {
-    exportBtn.addEventListener('click', () => {
-      const history = tradingEngine.history;
-      if (!history || history.length === 0) {
-        showToast('info', 'No History', 'There are no closed trades to export.');
-        return;
-      }
 
-      let csvContent = 'Symbol,Type,Volume (Lot),Open Price,Close Price,Take Profit,Stop Loss,Open Time,Close Time,Swap (USD),Reason,Profit/Loss (USD)\r\n';
-      const lotMultiplier = getLotMultiplier();
-
-      history.forEach(trade => {
-        const symbol = trade.symbol.replace('/', '');
-        const type = trade.type;
-        const volume = (trade.volume / lotMultiplier).toFixed(2);
-        const openPrice = trade.openPrice.toFixed(5);
-        const closePrice = trade.closePrice.toFixed(5);
-        const tp = trade.tp ? trade.tp.toFixed(5) : '-';
-        const sl = trade.sl ? trade.sl.toFixed(5) : '-';
-        const openTime = formatBitstarDateTime(trade.openTime);
-        const closeTime = formatBitstarDateTime(trade.closeTime);
-        const swap = trade.swap ? trade.swap.toFixed(2) : '0.00';
-        const reason = trade.exitReason || 'Closed';
-        const pnl = trade.pnl.toFixed(2);
-
-        const row = `"${symbol}","${type}",${volume},${openPrice},${closePrice},"${tp}","${sl}","${openTime}","${closeTime}",${swap},"${reason}",${pnl}`;
-        csvContent += row + '\r\n';
-      });
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `bitstar_trading_history_${Date.now()}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showToast('success', 'History Exported', 'CSV report downloaded successfully.');
-    });
-  }
-}
 
 function openModifyPositionModal(pos) {
   // Remove existing modal if any
@@ -4703,5 +4705,75 @@ function initGoogleAuth() {
   } else {
     startGIS();
   }
+}
+
+// ----------------------------------------------------
+// Exness Replica UI Features Initializer
+// ----------------------------------------------------
+function initExnessFeatures() {
+  // 1. Account Switcher Dropdown Binding
+  const trigger = document.getElementById('account-switcher-trigger');
+  const dropdown = document.getElementById('account-switcher-dropdown');
+  const typeDisplay = document.getElementById('account-type-display');
+  const classBadge = document.getElementById('account-class-badge');
+
+  if (trigger && dropdown) {
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', () => {
+      dropdown.classList.add('hidden');
+    });
+
+    const options = dropdown.querySelectorAll('.account-type-option');
+    options.forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        const selectedType = e.currentTarget.getAttribute('data-type');
+        options.forEach(o => o.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+
+        tradingEngine.accountType = selectedType;
+        if (typeDisplay) typeDisplay.textContent = selectedType;
+
+        if (classBadge) {
+          if (selectedType === 'Standard') {
+            classBadge.textContent = 'Real';
+            classBadge.style.backgroundColor = 'rgba(255, 183, 0, 0.12)';
+            classBadge.style.color = '#ffb700';
+          } else {
+            classBadge.textContent = 'Pro';
+            classBadge.style.backgroundColor = 'rgba(0, 192, 118, 0.12)';
+            classBadge.style.color = '#00c076';
+          }
+        }
+
+        tradingEngine.saveState();
+        tradingEngine.recalculateStats(marketEngine.coins);
+        tradingEngine.notify();
+        updateOrderCalculations();
+
+        // Refresh chart drawing since spreads changed
+        reloadChartData();
+
+        showToast('success', 'Account Switch', `Successfully switched to ${selectedType} account.`);
+      });
+    });
+  }
+
+  // 2. Dynamic Leverage Select Binding
+  const leverageSelect = document.getElementById('order-leverage-select');
+  if (leverageSelect) {
+    leverageSelect.addEventListener('change', () => {
+      const selectedLeverage = leverageSelect.value;
+      tradingEngine.leverage = selectedLeverage;
+      tradingEngine.saveState();
+      updateOrderCalculations();
+      showToast('info', 'Leverage Updated', `Account leverage set to 1:${selectedLeverage === 'Unlimited' ? 'Unlimited' : selectedLeverage}`);
+    });
+  }
+
+
 }
 

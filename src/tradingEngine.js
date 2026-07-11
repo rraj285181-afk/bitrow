@@ -1,14 +1,23 @@
 // Trading Engine for Bitstar Crypto Demo App
 // Manages positions, orders, account stats, and triggers SL/TP/liquidations
 
-function getSpread(symbol, currentPrice) {
+function getSpread(symbol, currentPrice, accountType = 'Standard') {
   const cleanSymbol = symbol.replace('/', '').replace('=X', '').replace('=F', '');
-  if (cleanSymbol.includes('BTC')) return 15.00;
-  if (cleanSymbol.includes('ETH')) return 1.50;
-  if (cleanSymbol.includes('EUR')) return 0.00008; // 0.8 pips
-  if (cleanSymbol.includes('XAU') || cleanSymbol === 'GC') return 0.25;    // 25 cents
-  if (cleanSymbol.includes('XAG') || cleanSymbol === 'SI') return 0.015;   // 1.5 cents
-  return 0.03; // USOIL: 3 cents
+  let baseSpread = 0.03;
+  if (cleanSymbol.includes('BTC')) baseSpread = 15.00;
+  else if (cleanSymbol.includes('ETH')) baseSpread = 1.50;
+  else if (cleanSymbol.includes('EUR')) baseSpread = 0.00008; // 0.8 pips
+  else if (cleanSymbol.includes('XAU') || cleanSymbol === 'GC') baseSpread = 0.25;    // 25 cents
+  else if (cleanSymbol.includes('XAG') || cleanSymbol === 'SI') baseSpread = 0.015;   // 1.5 cents
+
+  if (accountType === 'Pro') {
+    return baseSpread * 0.7; // 30% spread discount
+  } else if (accountType === 'Raw Spread') {
+    return baseSpread * 0.2; // 80% spread discount
+  } else if (accountType === 'Zero') {
+    return baseSpread * 0.05; // 95% spread discount
+  }
+  return baseSpread; // Standard
 }
 
 function getPipSize(symbol) {
@@ -17,7 +26,7 @@ function getPipSize(symbol) {
   if (cleanSymbol.includes('ETH')) return 1.00;
   if (cleanSymbol.includes('EUR')) return 0.0001;
   if (cleanSymbol.includes('XAU') || cleanSymbol === 'GC') return 0.01;
-  if (cleanSymbol.includes('XAG') || cleanSymbol === 'SI') return 0.0001; // Silver
+  if (cleanSymbol.includes('XAG') || cleanSymbol === 'SI') return 0.01; // Silver
   return 0.01; // USOIL
 }
 
@@ -36,6 +45,8 @@ class TradingEngine {
     this.storageKey = 'bitstar_demo_account_v1';
     this.listeners = [];
     this.isGuest = true; // Default to guest until authenticated
+    this.accountType = 'Standard';
+    this.leverage = 200;
     this.loadState();
     this.startHeartbeat();
   }
@@ -65,6 +76,8 @@ class TradingEngine {
     this.positions = [];
     this.pendingOrders = [];
     this.history = [];
+    this.accountType = 'Standard';
+    this.leverage = 200;
     this.isLoaded = false; // database load status flag
     
     this.recalculateStats({});
@@ -93,6 +106,8 @@ class TradingEngine {
           this.positions = data.positions || [];
           this.pendingOrders = data.pendingOrders || [];
           this.history = data.history || [];
+          this.accountType = data.accountType || 'Standard';
+          this.leverage = parseInt(data.leverage) || 200;
           this.isLoaded = true; // Connection successful
           this.recalculateStats({});
           this.notify();
@@ -111,6 +126,8 @@ class TradingEngine {
     this.positions = [];
     this.pendingOrders = [];
     this.history = [];
+    this.accountType = 'Standard';
+    this.leverage = 200;
     this.isLoaded = true;
   }
 
@@ -141,7 +158,9 @@ class TradingEngine {
       balance: this.balance,
       positions: this.positions,
       pendingOrders: this.pendingOrders,
-      history: this.history
+      history: this.history,
+      accountType: this.accountType,
+      leverage: this.leverage
     };
 
     fetch('/api/account/save', {
@@ -227,7 +246,7 @@ class TradingEngine {
       const priceInfo = livePrices[pos.symbol];
       if (priceInfo && priceInfo.currentPrice && !isNaN(priceInfo.currentPrice)) {
         const midPrice = priceInfo.currentPrice;
-        const spreadDiff = getSpread(pos.symbol, midPrice);
+        const spreadDiff = getSpread(pos.symbol, midPrice, this.accountType);
         if (pos.type === 'BUY') {
           // BUY is closed by selling at bid price
           pos.currentPrice = midPrice - (spreadDiff / 2);
@@ -299,7 +318,7 @@ class TradingEngine {
       if (!priceInfo) return true;
 
       const midPrice = priceInfo.currentPrice;
-      const spreadDiff = getSpread(order.symbol, midPrice);
+      const spreadDiff = getSpread(order.symbol, midPrice, this.accountType);
       let execute = false;
 
       if (order.type === 'BUY') {
@@ -327,14 +346,30 @@ class TradingEngine {
     // Execute the triggered limit orders
     pendingToExecute.forEach(order => {
       const livePrice = livePrices[order.symbol].currentPrice;
-      const spreadDiff = getSpread(order.symbol, livePrice);
+      const spreadDiff = getSpread(order.symbol, livePrice, this.accountType);
       const executionPrice = order.type === 'BUY' ? livePrice + (spreadDiff / 2) : livePrice - (spreadDiff / 2);
-      const marginReq = (order.volume * executionPrice) / order.leverage;
+      
+      const lev = order.leverage === 'Unlimited' ? 2100000000 : (parseInt(order.leverage) || 200);
+      const marginReq = lev >= 100000 ? 0 : (order.volume * executionPrice) / lev;
+      
+      const lotMult = getLotMultiplier(order.symbol);
+      const volumeInLots = order.volume / lotMult;
+      
+      let openComm = 0;
+      let closeComm = 0;
+      if (this.accountType === 'Raw Spread') {
+        openComm = volumeInLots * 3.50;
+        closeComm = volumeInLots * 3.50;
+      } else if (this.accountType === 'Zero') {
+        openComm = volumeInLots * 7.00;
+        closeComm = volumeInLots * 7.00;
+      }
+      
       const fee = 0; // No commission fee, spread (pips) is the only cost
 
       // Re-verify margin sufficiency at execution time
-      if (this.freeMargin >= marginReq + fee) {
-        this.balance -= fee;
+      if (this.freeMargin >= marginReq + fee + openComm) {
+        this.balance -= (fee + openComm);
         const position = {
           id: order.id,
           symbol: order.symbol,
@@ -344,6 +379,8 @@ class TradingEngine {
           entryPrice: executionPrice,
           currentPrice: executionPrice,
           margin: marginReq,
+          commission: openComm,
+          closeCommission: closeComm,
           pnl: 0,
           tp: order.tp,
           sl: order.sl,
@@ -354,7 +391,7 @@ class TradingEngine {
           tpTargets: []
         };
         this.positions.push(position);
-        this.logNotification('success', 'Order Filled', `Limit Order filled: ${order.type} ${order.volume} ${order.symbol.split('/')[0]} @ $${livePrice.toFixed(2)}`);
+        this.logNotification('success', 'Order Filled', `Limit Order filled: ${order.type} ${(order.volume / lotMult).toFixed(2)} lots of ${order.symbol.split('/')[0]} @ $${livePrice.toFixed(2)}`);
         
         // Recalculate stats immediately to update freeMargin for the next order
         this.recalculateStats(livePrices);
@@ -369,6 +406,7 @@ class TradingEngine {
           entryPrice: order.targetPrice,
           exitPrice: order.targetPrice,
           exitReason: 'Cancelled (Margin Shortage)',
+          commission: 0,
           pnl: 0,
           openTime: order.timestamp,
           closeTime: Date.now(),
@@ -478,7 +516,8 @@ class TradingEngine {
           (closePrice - pos.entryPrice) * pos.volume : 
           (pos.entryPrice - closePrice) * pos.volume;
 
-        this.balance += finalPnl;
+        const closeComm = pos.closeCommission || 0;
+        this.balance += (finalPnl - closeComm);
         
         this.history.unshift({
           id: pos.id,
@@ -489,7 +528,8 @@ class TradingEngine {
           entryPrice: pos.entryPrice,
           exitPrice: closePrice,
           exitReason: reason,
-          pnl: finalPnl,
+          commission: (pos.commission || 0) + closeComm,
+          pnl: finalPnl - closeComm,
           openTime: pos.timestamp,
           closeTime: Date.now(),
           tp: pos.tp || null,
@@ -498,8 +538,8 @@ class TradingEngine {
           timestamp: Date.now()
         });
 
-        this.logNotification(finalPnl >= 0 ? 'success' : 'info', `Position Closed (${reason})`, 
-          `${pos.symbol.split('/')[0]} ${pos.type} closed @ $${closePrice.toFixed(2)}. P&L: $${finalPnl.toFixed(2)}`
+        this.logNotification(finalPnl - closeComm >= 0 ? 'success' : 'info', `Position Closed (${reason})`, 
+          `${pos.symbol.split('/')[0]} ${pos.type} closed @ $${closePrice.toFixed(2)}. P&L: $${(finalPnl - closeComm).toFixed(2)}`
         );
 
         stateChanged = true;
@@ -532,7 +572,7 @@ class TradingEngine {
 
       const liquidatedPos = this.positions.splice(worstIndex, 1)[0];
       
-      this.balance += liquidatedPos.pnl;
+      this.balance += (liquidatedPos.pnl - (liquidatedPos.closeCommission || 0));
       
       this.history.unshift({
         id: liquidatedPos.id,
@@ -543,7 +583,8 @@ class TradingEngine {
         entryPrice: liquidatedPos.entryPrice,
         exitPrice: liquidatedPos.currentPrice,
         exitReason: 'Liquidation (Stop Out)',
-        pnl: liquidatedPos.pnl,
+        commission: (liquidatedPos.commission || 0) + (liquidatedPos.closeCommission || 0),
+        pnl: liquidatedPos.pnl - (liquidatedPos.closeCommission || 0),
         openTime: liquidatedPos.timestamp,
         closeTime: Date.now(),
         tp: liquidatedPos.tp || null,
@@ -588,16 +629,32 @@ class TradingEngine {
     const price = orderType === 'MARKET' ? targetPrice : targetPrice;
     
     // Safety checks
-    if (!symbol || !type || !volume || volume <= 0 || !leverage || leverage <= 0 || isNaN(price) || price <= 0) {
+    if (!symbol || !type || !volume || volume <= 0 || !leverage || isNaN(price) || price <= 0) {
       this.logNotification('error', 'Order Rejected', 'Invalid order details or market price.');
       return false;
     }
+    
+    const lev = leverage === 'Unlimited' ? 2100000000 : (parseInt(leverage) || 200);
     const sizeVal = volume * price;
-    const marginReq = sizeVal / leverage;
+    const marginReq = lev >= 100000 ? 0 : sizeVal / lev;
+    
+    const lotMult = getLotMultiplier(symbol);
+    const volumeInLots = volume / lotMult;
+    
+    let openCommission = 0;
+    let closeCommission = 0;
+    if (this.accountType === 'Raw Spread') {
+      openCommission = volumeInLots * 3.50;
+      closeCommission = volumeInLots * 3.50;
+    } else if (this.accountType === 'Zero') {
+      openCommission = volumeInLots * 7.00;
+      closeCommission = volumeInLots * 7.00;
+    }
+
     const fee = 0; // No commission fee, spread (pips) is the only cost
 
     // Check if margin is sufficient
-    if (this.freeMargin < marginReq + fee) {
+    if (this.freeMargin < marginReq + fee + openCommission) {
       this.logNotification('error', 'Margin Warning', 'Insufficient Free Margin + fees to open this position.');
       return false;
     }
@@ -606,7 +663,7 @@ class TradingEngine {
 
     if (orderType === 'MARKET') {
       // Execute immediately
-      this.balance -= fee;
+      this.balance -= (fee + openCommission);
       
       const newPosition = {
         id: orderId,
@@ -617,6 +674,8 @@ class TradingEngine {
         entryPrice: price,
         currentPrice: price,
         margin: marginReq,
+        commission: openCommission,
+        closeCommission: closeCommission,
         pnl: 0,
         tp: tp || null,
         sl: sl || null,
@@ -629,7 +688,7 @@ class TradingEngine {
 
       this.positions.push(newPosition);
       this.saveState();
-      this.logNotification('success', 'Order Executed', `Opened ${type} ${volume} ${symbol.split('/')[0]} @ $${price.toFixed(2)}`);
+      this.logNotification('success', 'Order Executed', `Opened ${type} ${(volume / lotMult).toFixed(2)} lots of ${symbol.split('/')[0]} @ $${price.toFixed(2)}`);
     } else {
       // Place limit order
       const newLimitOrder = {
@@ -646,7 +705,7 @@ class TradingEngine {
 
       this.pendingOrders.push(newLimitOrder);
       this.saveState();
-      this.logNotification('info', 'Limit Order Placed', `Set Limit ${type} ${volume} ${symbol.split('/')[0]} @ $${price.toFixed(2)}`);
+      this.logNotification('info', 'Limit Order Placed', `Set Limit ${type} ${(volume / lotMult).toFixed(2)} lots of ${symbol.split('/')[0]} @ $${price.toFixed(2)}`);
     }
 
     this.recalculateStats({});
@@ -719,7 +778,10 @@ class TradingEngine {
       closedPnl = (pos.entryPrice - pos.currentPrice) * closeVolume;
     }
 
-    this.balance += closedPnl;
+    const closedOpenComm = (pos.commission || 0) * ratio;
+    const closedCloseComm = (pos.closeCommission || 0) * ratio;
+
+    this.balance += (closedPnl - closedCloseComm);
 
     // Push closed part to history
     this.history.unshift({
@@ -731,7 +793,8 @@ class TradingEngine {
       entryPrice: pos.entryPrice,
       exitPrice: pos.currentPrice,
       exitReason: reason,
-      pnl: closedPnl,
+      commission: closedOpenComm + closedCloseComm,
+      pnl: closedPnl - closedCloseComm,
       openTime: pos.timestamp,
       closeTime: Date.now(),
       tp: pos.tp || null,
@@ -744,9 +807,12 @@ class TradingEngine {
     pos.volume = remainingVolume;
     pos.margin = pos.margin * (1 - ratio);
     pos.pnl = pos.pnl * (1 - ratio);
+    pos.commission = (pos.commission || 0) * (1 - ratio);
+    pos.closeCommission = (pos.closeCommission || 0) * (1 - ratio);
 
     this.saveState();
-    this.logNotification('success', 'Partial Close Executed', `Closed ${(closeVolume / getLotMultiplier(pos.symbol)).toFixed(2)} lots of ${pos.symbol.split('/')[0]}. P&L: $${closedPnl.toFixed(2)}`);
+    const lotMult = getLotMultiplier(pos.symbol);
+    this.logNotification('success', 'Partial Close Executed', `Closed ${(closeVolume / lotMult).toFixed(2)} lots of ${pos.symbol.split('/')[0]}. P&L: $${(closedPnl - closedCloseComm).toFixed(2)}`);
     
     this.recalculateStats({});
     this.notify();
@@ -794,8 +860,9 @@ class TradingEngine {
 
     const pos = this.positions.splice(index, 1)[0];
     const finalPnl = pos.pnl;
+    const closeComm = pos.closeCommission || 0;
     
-    this.balance += finalPnl;
+    this.balance += (finalPnl - closeComm);
 
     this.history.unshift({
       id: pos.id,
@@ -806,7 +873,8 @@ class TradingEngine {
       entryPrice: pos.entryPrice,
       exitPrice: pos.currentPrice,
       exitReason: 'Market Close',
-      pnl: finalPnl,
+      commission: (pos.commission || 0) + closeComm,
+      pnl: finalPnl - closeComm,
       openTime: pos.timestamp,
       closeTime: Date.now(),
       tp: pos.tp || null,
@@ -816,7 +884,7 @@ class TradingEngine {
     });
 
     this.saveState();
-    this.logNotification('info', 'Position Closed', `Manual close of ${pos.symbol.split('/')[0]} ${pos.type}. P&L: $${finalPnl.toFixed(2)}`);
+    this.logNotification('info', 'Position Closed', `Manual close of ${pos.symbol.split('/')[0]} ${pos.type}. P&L: $${(finalPnl - closeComm).toFixed(2)}`);
     this.recalculateStats({});
     this.notify();
     return true;

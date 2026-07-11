@@ -4586,26 +4586,34 @@ function initGoogleAuth() {
 
     // Handle Login UI elements update
   function updateLoginUI(email, name, picture) {
-    if (loginBtnContainer) loginBtnContainer.classList.add('hidden');
-    if (loggedInProfile) loggedInProfile.classList.remove('hidden');
-    
     const depositBtn = document.getElementById('deposit-crypto-btn');
     const withdrawBtn = document.getElementById('withdraw-crypto-btn');
-    if (depositBtn) depositBtn.classList.remove('hidden');
-    if (withdrawBtn) withdrawBtn.classList.remove('hidden');
 
-    // Only set src if picture is a valid non-empty string (avoid 404 from null/undefined)
-    if (profilePic && picture && typeof picture === 'string' && picture.length > 0) {
-      profilePic.src = picture;
+    if (tradingEngine.isGuest) {
+      if (loginBtnContainer) loginBtnContainer.classList.remove('hidden');
+      if (loggedInProfile) loggedInProfile.classList.add('hidden');
+      if (depositBtn) depositBtn.classList.add('hidden');
+      if (withdrawBtn) withdrawBtn.classList.add('hidden');
+      hideRightWorkspace();
+    } else {
+      if (loginBtnContainer) loginBtnContainer.classList.add('hidden');
+      if (loggedInProfile) loggedInProfile.classList.remove('hidden');
+      if (depositBtn) depositBtn.classList.remove('hidden');
+      if (withdrawBtn) withdrawBtn.classList.remove('hidden');
+
+      // Only set src if picture is a valid non-empty string (avoid 404 from null/undefined)
+      if (profilePic && picture && typeof picture === 'string' && picture.length > 0) {
+        profilePic.src = picture;
+      }
+      if (profileName) profileName.textContent = name || '';
+      if (profileEmail) profileEmail.textContent = email || '';
+
+      if (window.checkAdminStatus) {
+        window.checkAdminStatus();
+      }
+
+      showRightWorkspace();
     }
-    if (profileName) profileName.textContent = name || '';
-    if (profileEmail) profileEmail.textContent = email || '';
-
-    if (window.checkAdminStatus) {
-      window.checkAdminStatus();
-    }
-
-    showRightWorkspace();
   }
 
   // Handle Login flow
